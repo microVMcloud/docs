@@ -1,0 +1,59 @@
+---
+title: "Troubleshoot minlin"
+sidebarTitle: "Troubleshooting"
+description: "Diagnose common minlin boot and app errors from the serial console."
+---
+
+init and your programs log to the serial console. Start there: read the first error, not the last one.
+
+## Common errors
+
+| Symptom on the console | Likely cause |
+| --- | --- |
+| `init: exec X: Exec format error` | `X` is a script. Name its interpreter in `init.conf`. |
+| `init: exec X: No such file or directory` | The path is wrong or relative, or the program's dynamic loader is missing from the disk. |
+| `mount /dev/vda: Invalid argument` | `sys/diskimage` isn't a valid ext4 image. Rebuild it with `build-disk.sh`. |
+| `error while loading shared libraries` | The program loads a library `ldd` didn't report. Add it with `install_binary`. |
+| The same `started` and `exited` lines every second | A `respawn` program is crash-looping. Read the first error above the loop. |
+| `Function not implemented`, `ENOSYS`, `Address family not supported` | The kernel lacks a feature. See [Kernel limits](/minlin/kernel#kernel-limits). |
+| Very slow start, timeouts, no response, `page allocation failure` | Too little RAM. Raise `MEM`. |
+| Name resolution or TLS failures | `/etc/resolv.conf` or certificates are missing, or QEMU was started without `HOSTFWD` or `SSHFWD`. |
+| VM exits immediately | Every program has exited. Read their exit statuses on the console. |
+
+## Find the files a program needs
+
+To list the files a program opens, trace it on your host:
+
+```bash
+strace -f -e trace=openat,newfstatat -e status=successful prog 2>&1 |
+  grep -oE '"/[^"]+"' | tr -d '"' | sort -u
+```
+
+Copy anything that's missing from the disk in your app's `install.sh`.
+
+## Trace a program inside the VM
+
+`strace` runs on the minimal kernel. To see what fails inside the guest:
+
+1. Add `install_binary "$(command -v strace)"` to your app's `install.sh`.
+2. Start the program through strace in `init.conf`, for example `respawn /usr/bin/strace -f /usr/bin/prog`.
+3. Rebuild the disk and boot.
+
+Remove both lines when you're done.
+
+## Get a shell alongside your app
+
+To look around inside a running VM:
+
+1. Add `source "$SCRIPT_DIR/apps/bash/install.sh"` to your app's `install.sh`.
+2. Add this line to `init.conf`:
+
+   ```text
+   once /usr/bin/setsid -c -w /usr/bin/bash -i
+   ```
+
+This gives you a shell on the console while your app runs.
+
+## Rule out the kernel
+
+If you suspect the kernel, boot the same disk on a full kernel. See [Compare with a full kernel](/minlin/kernel#compare-with-a-full-kernel).

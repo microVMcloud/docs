@@ -1,0 +1,139 @@
+---
+title: "Build and boot minlin"
+sidebarTitle: "Build and boot"
+description: "Build the minlin kernel and a disk image, then boot them under QEMU or Firecracker."
+---
+
+You can build minlin and run it on your own Linux machine to test an app before you deploy it. Run every command from the root of the minlin repository.
+
+## Prerequisites
+
+You need an x86-64 Linux host with KVM. The scripts check for their dependencies and print an install hint for Debian and Ubuntu if something is missing.
+
+- **Kernel build:** `curl`, `xz`, `build-essential`, `bc`, `flex`, `bison`, `libelf-dev` and `qemu-system-x86`. Install `musl-tools` too. Without `musl-gcc`, init falls back to static glibc, which costs about 850 KB of guest RAM instead of a few tens of KB.
+- **Disk build:** e2fsprogs 1.47.1 or later and libarchive, because the image is built with `mkfs.ext4 -d` from a tarball.
+- **The app's programs:** apps copy programs from your host, so the host needs them installed. For example, the `lighttpd` app needs `lighttpd`.
+
+```bash
+sudo apt install curl coreutils xz-utils build-essential bc flex bison \
+  qemu-system-x86 libelf-dev musl-tools e2fsprogs libarchive13t64
+```
+
+<Note>
+  On older Ubuntu and Debian releases, the libarchive package is `libarchive13`.
+</Note>
+
+## Build and run
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/microvmcloud/minlin.git
+    cd minlin
+    ```
+  </Step>
+  <Step title="Build the kernel">
+    ```bash
+    ./build-linux.sh
+    ```
+
+    This downloads the Linux source, verifies its SHA-256, compiles init and builds the kernel. It writes `sys/bzImage` and `sys/vmlinux`. You only need to run it again after changing the kernel configuration or `init.c`.
+  </Step>
+  <Step title="Build a disk image">
+    ```bash
+    ./build-disk.sh lighttpd
+    ```
+
+    This writes `sys/diskimage` from `apps/lighttpd`. See [Included apps](/minlin/apps) for the other apps you can build.
+  </Step>
+  <Step title="Boot the VM">
+    ```bash
+    HOSTFWD=8080 ./boot-qemu.sh
+    ```
+
+    Then open another terminal and run `curl http://localhost:8080/`.
+  </Step>
+</Steps>
+
+To stop a VM under QEMU, press **Ctrl-A** then **X**.
+
+<Warning>
+  Killing the VM skips init's final disk sync, so recent writes to the disk can be lost. Where you can, stop the app's programs from inside the VM instead and let init shut down cleanly.
+</Warning>
+
+## Boot under QEMU
+
+`boot-qemu.sh` boots `sys/` with QEMU's `microvm` machine type and user-mode networking.
+
+```bash
+MEM=64 HOSTFWD=8080 ./boot-qemu.sh      # forward host port 8080 to guest port 80
+SSHFWD=2222 ./boot-qemu.sh              # forward host port 2222 to guest port 22
+timeout 30 ./boot-qemu.sh               # stop a VM that never exits
+./boot-qemu.sh --debug                  # show kernel messages
+```
+
+QEMU only forwards guest ports 80 and 22. Either forward also gives the guest outbound internet access.
+
+## Boot under Firecracker
+
+`boot-firecracker.sh` boots `sys/vmlinux` under Firecracker, with a tap device on the `br0` bridge. The guest gets the next IP address up on the bridge, and all its ports are reachable.
+
+```bash
+./boot-firecracker.sh
+```
+
+To back guest RAM with 2 MB huge pages, set `HUGEPAGES=1`. This makes the kernel boot about three times faster. Reserve `MEM/2` pages per VM on the host first. For example, for `MEM=128`:
+
+```bash
+sudo sysctl vm.nr_hugepages=64
+MEM=128 HUGEPAGES=1 ./boot-firecracker.sh
+```
+
+The script checks that enough huge pages are free before it starts.
+
+## Boot settings
+
+Both boot scripts read their settings from environment variables.
+
+| Variable | Scripts | Meaning |
+| --- | --- | --- |
+| `MEM` | Both | Guest RAM in MB. Default `32`. |
+| `GUEST_NAME` | Both | Hostname. Default `minlin`. |
+| `SWAP` | Both | A `mkswap` file to attach as `/dev/vdb`. |
+| `HOSTFWD` | QEMU | Host port to forward to guest port 80. |
+| `SSHFWD` | QEMU | Host port to forward to guest port 22. |
+| `BIND_ADDR` | QEMU | Host address the forwarded ports listen on. Default `127.0.0.1`. |
+| `BRIDGE`, `TAP`, `GUEST_IP` | Firecracker | Network settings. See the comments in `boot-firecracker.sh`. |
+| `HUGEPAGES` | Firecracker | Set to `1` to back guest RAM with 2 MB huge pages. |
+
+<Warning>
+  Setting `BIND_ADDR=0.0.0.0` opens the forwarded ports to your network.
+</Warning>
+
+## Add swap
+
+To add swap, create a swap image and pass it with `SWAP`. It's attached as a second disk, `/dev/vdb`, and init turns it on at boot.
+
+```bash
+fallocate -l 256M sys/swapimage
+chmod 600 sys/swapimage
+mkswap sys/swapimage
+SWAP=sys/swapimage ./boot-qemu.sh
+```
+
+The root disk must stay a whole-disk ext4 image at `/dev/vda`, so swap goes on its own disk. The minlin kernel has no partition table parsers, so it only finds swap on a whole disk.
+
+## Build output
+
+| Path | Contents |
+| --- | --- |
+| `sys/bzImage` | Kernel for QEMU |
+| `sys/vmlinux` | Kernel for Firecracker |
+| `sys/diskimage` | Disk image for the last app you built. Readable only by the user who built it. |
+| `linux-src/` | Work directory: kernel source trees, the disk's staging tree, and kept host keys and tokens |
+
+Each `build-disk.sh` run replaces `sys/diskimage`. A VM that's already running keeps using the old image, and its changes are lost when it exits.
+
+<Note>
+  All VMs started from the unmodified scripts share one `sys/diskimage`, so run one VM at a time.
+</Note>

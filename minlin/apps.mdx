@@ -1,0 +1,157 @@
+---
+title: "Included apps"
+sidebarTitle: "Included apps"
+description: "Ready-made minlin apps for web servers, language runtimes, SSH, Tailscale and a headless browser."
+---
+
+A minlin app is a directory in `apps/` that describes what goes on the VM's disk. The repository includes these apps:
+
+| App | What it runs | Suggested `MEM` |
+| --- | --- | --- |
+| [`lighttpd`](#lighttpd) | Static web server on port 80 | 32 (default) |
+| [`python`](#python) | Python 3 web server on port 80 | 32 (default) |
+| [`node`](#node) | Node.js web server on port 80 | 64 |
+| [`top`](#top) | `top` on the serial console | 32 (default) |
+| [`bash`](#bash) | Interactive shell on the serial console | 32 (default) |
+| [`sshd`](#sshd) | OpenSSH server on port 22 | 32 (default) |
+| [`dropbear`](#dropbear) | Dropbear SSH server on port 22 | 32 (default) |
+| [`tailscale`](#tailscale) | Tailscale node, optionally an exit node | 64 |
+| [`lightpanda`](#lightpanda) | Headless browser as an MCP server on port 80 | 128 |
+
+Build an app's disk image with `./build-disk.sh <app>`. The kernel stays the same.
+
+<Note>
+  Apps copy programs and their shared libraries from your host, so the host needs each program installed. The build checks and tells you what's missing.
+</Note>
+
+## lighttpd
+
+Serves `rootfs/var/www` on port 80, with its access log on the console. Install `lighttpd` on the host first.
+
+```bash
+./build-disk.sh lighttpd
+HOSTFWD=8080 ./boot-qemu.sh       # then: curl http://localhost:8080/
+```
+
+## python
+
+Runs `rootfs/app/main.py` with the host's `python3`. It's a small `http.server` on port 80 that reports the Python version, kernel, boot parameters, memory and disk space. It serves HTML at `/` and JSON at `/metrics.json`.
+
+The build copies the standard library, minus the test suite, GUI packages and static libpython. It also copies the shared libraries that extension modules such as `ssl` and `sqlite3` link against.
+
+```bash
+./build-disk.sh python
+HOSTFWD=8080 ./boot-qemu.sh
+```
+
+## node
+
+Runs `rootfs/app/server.js` with the host's `node`, a small web server on port 80. It expects the Debian or Ubuntu `nodejs` package, tested with version 22.22.1. That build loads some JavaScript from `/usr/share/nodejs` at startup, so the app copies those files too. The disk is 256 MB.
+
+```bash
+./build-disk.sh node
+MEM=64 HOSTFWD=8080 ./boot-qemu.sh
+```
+
+<Warning>
+  Give the VM at least `MEM=64`. The first response takes about 0.5 seconds at 64 MB and 3.8 seconds at 48 MB. At 40 MB or less, node hangs without logging an error.
+</Warning>
+
+## top
+
+Runs the host's `top` (procps) on the serial console, along with the `linux` terminfo entry it draws with. Press **q** to quit `top`, which also ends the VM.
+
+```bash
+./build-disk.sh top
+./boot-qemu.sh
+```
+
+## bash
+
+Runs an interactive `bash` on the serial console with a `user@host:dir` prompt. It includes the host's static busybox for everyday commands such as `ls`, `cat`, `grep`, `ps`, `free`, `df` and `vi`, plus the host's `curl`.
+
+Type `exit` or press **Ctrl-D** to end the VM.
+
+```bash
+./build-disk.sh bash
+./boot-qemu.sh
+```
+
+## sshd
+
+Runs the host's OpenSSH server and client, logging to the console. Root's login shell is `bash` with the commands from the `bash` app.
+
+Root logs in with a key. Set `SSH_AUTHORIZED_KEYS` to a public key file or a whole `authorized_keys` file:
+
+```bash
+SSH_AUTHORIZED_KEYS=~/.ssh/id_ed25519.pub ./build-disk.sh sshd
+SSHFWD=2222 ./boot-qemu.sh        # then: ssh -p 2222 root@localhost
+```
+
+If you don't set `SSH_AUTHORIZED_KEYS`, the disk gets an empty `authorized_keys` file. Use this to build a "public" image with no keys in it.
+
+The ed25519 host key is generated on the first build and kept in `linux-src/ssh_host_ed25519_key`, so it survives rebuilding the disk.
+
+To shut down cleanly, run this in a session, then log out:
+
+```bash
+kill $(cat /run/sshd.pid)
+```
+
+init reboots once the last session ends.
+
+## dropbear
+
+The same as `sshd`, but with the host's Dropbear SSH server and its `dbclient`. Dropbear uses a single process per connection and no privilege separation user, which leaves a bit more free memory.
+
+It takes `SSH_AUTHORIZED_KEYS` the same way and keeps its host key in `linux-src/dropbear_ed25519_host_key`. If the host has OpenSSH's `sftp-server`, the app uses it for `scp` and `sftp`.
+
+```bash
+SSH_AUTHORIZED_KEYS=~/.ssh/id_ed25519.pub ./build-disk.sh dropbear
+SSHFWD=2222 ./boot-qemu.sh
+```
+
+To shut down cleanly, run `kill $(cat /var/run/dropbear.pid)` and log out.
+
+## tailscale
+
+Runs the host's `tailscaled` with kernel-mode networking, using a `tailscale0` TUN device and policy routing. It's IPv4 only and uses `1.1.1.1` and `8.8.8.8` for DNS.
+
+Build it with an auth key, ideally an ephemeral one:
+
+```bash
+TS_AUTHKEY=tskey-auth-... ./build-disk.sh tailscale
+MEM=64 HOSTFWD=8080 ./boot-qemu.sh
+```
+
+Give the VM more than the default 32 MB, which thrashes paging in the ~30 MB binary.
+
+To advertise the VM as an exit node, also set `TS_EXIT_NODE=1`, then approve it in the Tailscale admin console. This turns on IPv4 forwarding and NAT with nftables.
+
+<Note>
+  As an exit node, tailscaled warns that IP forwarding is disabled. The warning is about IPv6 forwarding, which the guest doesn't have. You can ignore it.
+</Note>
+
+## lightpanda
+
+Runs [Lightpanda](https://lightpanda.io), a headless browser with a V8 JavaScript engine, as an MCP server on port 80. This lets an AI agent browse the web from inside a throwaway VM.
+
+Lightpanda isn't packaged, so install it from its site. The build looks for `lightpanda` on your `PATH`, or you can set `LIGHTPANDA=/path/to/binary`. Telemetry is turned off.
+
+lighttpd sits in front of Lightpanda and only accepts clients with a bearer token. The build generates the token and keeps it in `linux-src/lightpanda_mcp_token`. To use your own, set `MCP_TOKEN`.
+
+```bash
+./build-disk.sh lightpanda
+MEM=128 HOSTFWD=8080 ./boot-qemu.sh
+```
+
+Then connect your agent. For example, with Claude Code:
+
+```bash
+claude mcp add --transport http minlin-browser http://localhost:8080/mcp \
+  --header "Authorization: Bearer $(cat linux-src/lightpanda_mcp_token)"
+```
+
+<Warning>
+  Give the VM 128 MB. Heavy pages leave a 64 MB guest short of network buffers.
+</Warning>

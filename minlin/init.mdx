@@ -1,0 +1,111 @@
+---
+title: "Configure init"
+sidebarTitle: "init and init.conf"
+description: "Control which programs run in a minlin VM with /etc/init.conf, and learn what the root disk does and doesn't provide."
+---
+
+minlin's init is a small static C program that runs as PID 1. It sets up networking, mounts the root disk and starts the programs listed in `/etc/init.conf`. There's no shell, service manager or package manager in the VM unless you add one.
+
+## init.conf
+
+Each line of `/etc/init.conf` has this format:
+
+```text
+<action> /absolute/path [args...]
+```
+
+Lines starting with `#` are comments. Entries start in the order they appear.
+
+| Action | Behavior | Use for |
+| --- | --- | --- |
+| `wait` | Runs the program and waits for it to exit. A failure doesn't stop the boot. | Setup steps |
+| `once` | Starts the program and leaves it running. | Jobs, shells, and services that should end the VM when they stop |
+| `respawn` | Starts the program, and restarts it one second after it exits. | Long-running services |
+
+For example, this runs a one-time setup script and then keeps a web server running:
+
+```text
+wait /usr/bin/bash /app/setup.sh
+respawn /usr/sbin/lighttpd -D -f /etc/lighttpd/lighttpd.conf
+```
+
+### Rules
+
+- **Use absolute paths.** init uses `execv` and doesn't search `PATH`.
+- **Name the interpreter for scripts.** The kernel has no `BINFMT_SCRIPT`, so a `#!` script fails with `Exec format error`. Write `once /usr/bin/bash /app/start.sh` instead of `once /app/start.sh`.
+- **Don't rely on shell syntax.** Arguments split on whitespace. There's no quoting, variable expansion or redirection.
+- **Stay in the foreground.** A service that daemonizes looks like an exit to `respawn`. Use its foreground flag, such as `-D` or `-F`.
+- **Log to stdout or stderr.** Both go to the serial console.
+- **Stay within the limits.** init supports 16 entries, 32 arguments per entry and 511 characters per line.
+
+### Environment
+
+Programs get `PATH`, `HOME=/`, `TERM=linux`, and any parameters the kernel passes on from its command line, such as `ip=`.
+
+To set other variables, start the program through `env`:
+
+```text
+respawn /usr/bin/env FOO=bar /usr/bin/prog
+```
+
+### Interactive programs
+
+Each program starts in its own session with no controlling terminal. To run an interactive program on the console, start it through util-linux `setsid`:
+
+```text
+once /usr/bin/setsid -c -w /usr/bin/bash -i
+```
+
+This gives the program job control and a working **Ctrl-C**.
+
+## Shutdown
+
+When no processes are left, init syncs the disk and reboots, which ends the VM. So:
+
+- A VM whose programs are all `once` or `wait` entries ends when they finish.
+- A `respawn` entry keeps the VM up until it's killed or gets a shutdown signal.
+
+init shuts down cleanly when it receives `SIGTERM`, `SIGPWR` or `SIGINT`. Firecracker's `SendCtrlAltDel` action sends `SIGINT` to init through the emulated keyboard.
+
+If the kernel panics, it reboots after one second, which also ends the VM.
+
+## Networking
+
+init configures `lo` and `eth0` before starting any programs, so you don't need `ip` or a DHCP client. The address comes from the `ip=` kernel parameter, in the kernel's standard format:
+
+```text
+ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
+```
+
+Without `ip=`, init only brings up `lo`.
+
+## Kernel settings
+
+If the disk has `/etc/sysctl.conf`, init applies it before starting programs. Use `key = value` lines, as for `sysctl -p`:
+
+```text
+net.ipv4.ip_forward = 1
+```
+
+## What's on the disk
+
+The disk starts empty, and only what the app adds is there. At boot, init adds `/dev` (with `/dev/fd` and `/dev/std*`), `/dev/pts`, `/proc` and `/tmp`.
+
+Anything else your program needs must come from the app:
+
+| Needed for | Add |
+| --- | --- |
+| DNS | `/etc/resolv.conf` |
+| TLS | `/etc/ssl/certs/` |
+| User and group lookups | `/etc/passwd`, `/etc/group` |
+| Terminal programs | A terminfo entry for `linux` |
+| PID files and state | `/run`, `/var/run`, `/var/log` and so on |
+| Shell commands, including `/bin/sh` | A shell, plus busybox |
+| Kernel settings | `/etc/sysctl.conf` |
+
+Also keep in mind:
+
+- `/tmp` is RAM-backed and counts against guest memory. Its mode is `0755`, so only root can write to it.
+- Programs run as root unless they drop privileges.
+- The disk is writable and persists across boots.
+- There's one CPU and no kernel modules.
