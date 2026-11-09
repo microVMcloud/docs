@@ -16,6 +16,18 @@
           "index",
           "quickstart"
         ]
+      },
+      {
+        "group": "minlin",
+        "pages": [
+          "minlin/overview",
+          "minlin/build-and-boot",
+          "minlin/init",
+          "minlin/apps",
+          "minlin/create-an-app",
+          "minlin/kernel",
+          "minlin/troubleshooting"
+        ]
       }
     ],
     "global": {

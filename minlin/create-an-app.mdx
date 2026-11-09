@@ -1,0 +1,168 @@
+---
+title: "Create a minlin app"
+sidebarTitle: "Create an app"
+description: "Package your own program as a minlin app with an init.conf and an install script."
+---
+
+An app is a directory in `apps/` that tells `build-disk.sh` what to put on the VM's disk. You can package most ordinary Linux programs this way.
+
+## App layout
+
+```text
+apps/<name>/
+    rootfs/etc/init.conf    what init starts
+    rootfs/...              files copied onto the disk as-is, owned by root
+    install.sh              optional, sourced by build-disk.sh after the copy
+    README.md               optional, for anything beyond a simple app
+```
+
+`build-disk.sh <name>` copies `rootfs/` onto the disk, then sources `install.sh` if it exists.
+
+## Steps
+
+<Steps>
+  <Step title="Check the kernel can run it">
+    minlin's kernel leaves out many features, such as `inotify`, `io_uring` and IPv6. Run `strace -f <program>` on your host and look for system calls listed in [Kernel limits](/minlin/kernel#kernel-limits).
+  </Step>
+  <Step title="Write rootfs/etc/init.conf">
+    List the programs init should start. See [Configure init](/minlin/init) for the format.
+  </Step>
+  <Step title="Write install.sh">
+    Bring in the program and everything it loads at runtime. See [Install script reference](#install-script-reference).
+  </Step>
+  <Step title="Add the files the program expects">
+    The disk starts empty. Add files such as `/etc/resolv.conf` or `/etc/passwd` if your program needs them. See [What's on the disk](/minlin/init#whats-on-the-disk).
+  </Step>
+  <Step title="Boot it and fix what fails">
+    Start with more RAM than you expect to need, such as `MEM=128`. See [Troubleshooting](/minlin/troubleshooting) for common errors.
+  </Step>
+  <Step title="Find the memory floor">
+    Try lower `MEM` values and record what works. Low memory often shows up as slowness or timeouts, not as a clear error.
+  </Step>
+</Steps>
+
+## Example: Node.js
+
+This is the included `node` app, built with Ubuntu's `nodejs` 22 package.
+
+<CodeGroup>
+```text apps/node/rootfs/etc/init.conf
+respawn /usr/bin/node /app/server.js
+```
+
+```javascript apps/node/rootfs/app/server.js
+require('http').createServer((req, res) => {
+    console.log(req.method, req.url);
+    res.end(`hello from node ${process.version} on ${require('os').release()}\n`);
+}).listen(80);
+```
+
+```bash apps/node/install.sh
+# Sourced by build-disk.sh: installs the host's node, its shared libraries,
+# and the JavaScript files Debian/Ubuntu's build loads at startup.
+
+require node nodejs
+
+install_binary "$(command -v node)"
+# Not linked in, so ldd can't see them. Found with strace on the host.
+for dep in acorn acorn-walk cjs-module-lexer minimatch undici; do
+    cp -rL --parents "/usr/share/nodejs/$dep" "$ROOTFS"
+done
+
+DISK_SIZE=256M
+```
+</CodeGroup>
+
+Then build and boot it:
+
+```bash
+./build-disk.sh node
+MEM=64 HOSTFWD=8080 ./boot-qemu.sh     # then: curl http://localhost:8080/
+```
+
+Getting there took three iterations, which is typical:
+
+1. `mkfs.ext4` ran out of space, because the program and its libraries came to 124 MB. The fix was to set `DISK_SIZE`.
+2. node aborted with `Cannot load externalized builtin`, and init restarted it every second. The fix was to trace the files node opens on the host and copy them.
+3. At the default `MEM=32`, node hung with no error. The fix was `MEM=64`.
+
+## Install script reference
+
+`build-disk.sh` sources `install.sh` under `set -euo pipefail`, so any failing command aborts the build. The script doesn't need to be executable.
+
+| Name | Meaning |
+| --- | --- |
+| `install_binary <path>` | Copies a host file to the same path on the disk, along with every library `ldd` reports. Fails if `ldd` reports a library as not found. |
+| `install_libs <path>` | Copies only the libraries, for a program you installed at a different path. |
+| `require <cmd> [apt-pkg]` | Fails with an install hint if the host doesn't have a command. |
+| `log <msg>` | Prints a progress line. |
+| `$ROOTFS` | The tree that becomes the disk. It's deleted at the start of each build. |
+| `$WORKDIR` | The `linux-src/` directory, which survives rebuilds. Keep generated keys here. |
+| `$APP`, `$APP_DIR` | The app's name and directory. |
+| `$SCRIPT_DIR` | The repository root. |
+| `DISK_SIZE` | Image size. Default `128M`. Set it when the files need more space. |
+
+### Common patterns
+
+**Install a host program.** The disk path matches the host path, so `init.conf` must use the same path:
+
+```bash
+install_binary "$(command -v prog)"
+```
+
+**Install plugins and `dlopen`ed libraries.** `ldd` can't see these, so pass each one to `install_binary`. That way its own dependencies come too:
+
+```bash
+for mod in h2 accesslog status; do
+    install_binary "$moddir/mod_$mod.so"
+done
+```
+
+**Copy data files.** Add `-L` to follow symlinks whose targets you aren't also copying:
+
+```bash
+cp -a --parents /host/path "$ROOTFS"
+```
+
+**Install a program at a fixed path:**
+
+```bash
+mkdir -p "$ROOTFS/usr/bin"
+cp -L "$PROG" "$ROOTFS/usr/bin/prog"
+install_libs "$PROG"
+```
+
+**Compile a program from source in the app:**
+
+```bash
+mkdir -p "$ROOTFS/usr/local/bin"
+gcc -static -o "$ROOTFS/usr/local/bin/prog" "$APP_DIR/src/prog.c"
+```
+
+**Reuse another app's install script.** This adds bash, busybox and terminfo. Only `install.sh` is reused, not the other app's `rootfs/`:
+
+```bash
+source "$SCRIPT_DIR/apps/bash/install.sh"
+```
+
+**Shrink the disk.** `strip` large binaries and delete files a headless VM won't use.
+
+## Networking
+
+init configures `lo` and `eth0` before your programs start. You don't need to set up networking yourself.
+
+Under QEMU, the boot script only forwards guest ports 80 and 22. Have your app listen on one of those, or add a `hostfwd` to `boot-qemu.sh`. Programs run as root, so they can bind low ports. Under Firecracker, all the guest's ports are reachable.
+
+## Handle secrets
+
+Disk images and `linux-src/rootfs/` can hold auth keys, tokens and host keys in plain text.
+
+- Pass secrets in through environment variables at build time, as the `tailscale` app does with `TS_AUTHKEY`.
+- Keep anything that must survive a rebuild in `$WORKDIR`, as the `sshd` and `lightpanda` apps do.
+- Never commit secrets to `apps/`.
+
+`build-disk.sh` makes `sys/diskimage` readable only by the user who built it.
+
+<Tip>
+  Document each environment variable your app reads in the comment at the top of its `install.sh`.
+</Tip>

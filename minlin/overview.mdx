@@ -1,0 +1,83 @@
+---
+title: "minlin overview"
+sidebarTitle: "Overview"
+description: "minlin is the minimal Linux kernel and init that microVM Cloud runs in its micro VMs."
+---
+
+minlin (MINimal LINux) is the default Linux kernel for microVM Cloud micro VMs. It's a tiny x86-64 kernel built from `tinyconfig` with virtio-mmio support. A custom `init` program is built into its initramfs.
+
+minlin boots under QEMU `microvm` or Firecracker. It runs ordinary, dynamically linked Linux programs from an ext4 disk image.
+
+The source is on GitHub at [microvmcloud/minlin](https://github.com/microvmcloud/minlin).
+
+## Why minlin
+
+A general-purpose kernel spends most of its boot time and memory on hardware a micro VM doesn't have. minlin drops everything a KVM micro VM never uses, such as PCI, VGA and partition tables. The result boots in about 10 milliseconds and leaves most of the guest's RAM free for your program.
+
+| Linux 7.3.1, booted with 64 MiB RAM | minlin | Full kernel |
+| --- | --- | --- |
+| `bzImage` (bytes) | 1,754,112 | 15,303,680 |
+| `vmlinux` (bytes) | 10,911,240 | 53,934,448 |
+| Free memory (KiB) | 51,188 | 10,780 |
+| Startup time (seconds) | 0.010735 | 2.906956 |
+
+These numbers come from QEMU `microvm` with `MEM=64`, taking the median of five boots:
+
+- Free memory is `MemFree` from `/proc/meminfo` when the first program runs.
+- Startup time is the kernel timestamp of `Run /init as init process`.
+
+Most of the full kernel's startup time goes to probing for an RTC, which `microvm` doesn't have.
+
+<Tip>
+  Under Firecracker with 2 MB huge pages backing guest RAM, minlin reaches `/init` in about 0.007 seconds instead of 0.024 seconds.
+</Tip>
+
+## How it works
+
+A minlin VM has three parts:
+
+- **The kernel** (`bzImage` for QEMU, `vmlinux` for Firecracker). It's the same for every workload.
+- **init**, a small static program built into the kernel's initramfs. It runs as PID 1.
+- **The disk image**, an ext4 filesystem holding one "app": the programs the VM runs and the files they need.
+
+Because the kernel doesn't depend on the app, switching workloads only means building a new disk image.
+
+## Boot sequence
+
+<Steps>
+  <Step title="Kernel starts init">
+    The kernel runs `/init` from the built-in initramfs.
+  </Step>
+  <Step title="Networking comes up">
+    init brings up the loopback interface (`lo`, `127.0.0.1`). It then configures `eth0`, and the hostname if given, from the `ip=` kernel parameter.
+  </Step>
+  <Step title="Root disk is mounted">
+    init mounts `/dev/vda` (ext4), moves it over `/` and chroots into it. It then mounts `/dev`, `/dev/pts`, `/proc` and `/tmp`.
+  </Step>
+  <Step title="Swap is enabled">
+    init turns on swap on every whole block device that has a swap signature from `mkswap`.
+  </Step>
+  <Step title="Kernel settings are applied">
+    If the disk has `/etc/sysctl.conf`, init applies its `key = value` lines, as `sysctl -p` would.
+  </Step>
+  <Step title="Programs start">
+    init runs the programs listed in `/etc/init.conf` and reaps their children. Once nothing is left running, init syncs the disk and reboots, which ends the VM.
+  </Step>
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Build and boot" icon="hammer" href="/minlin/build-and-boot">
+    Build the kernel and a disk image, then boot them locally.
+  </Card>
+  <Card title="Configure init" icon="list-check" href="/minlin/init">
+    Control what runs in the VM with `/etc/init.conf`.
+  </Card>
+  <Card title="Included apps" icon="boxes-stacked" href="/minlin/apps">
+    Run a web server, Python, Node.js, SSH, Tailscale and more.
+  </Card>
+  <Card title="Create an app" icon="plus" href="/minlin/create-an-app">
+    Package your own program as a minlin app.
+  </Card>
+</CardGroup>

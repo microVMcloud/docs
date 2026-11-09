@@ -1,0 +1,93 @@
+---
+title: "The minlin kernel"
+sidebarTitle: "Kernel"
+description: "How the minlin kernel is configured, which features it leaves out, and how to add a kernel option."
+---
+
+The minlin kernel is Linux 7.3.1, configured from `tinyconfig`. Linux 6.18.60 LTS is also tested. `build-linux.sh` adds only what a KVM micro VM and ordinary dynamically linked programs need.
+
+## What's included
+
+On top of `tinyconfig`, the kernel enables:
+
+- **Boot and console:** ELF binaries, a serial console on `ttyS0`, `devtmpfs`, and a built-in uncompressed initramfs that holds init.
+- **Virtualization:** KVM guest and paravirtualization support.
+- **Devices:** virtio-mmio block and network devices. There's no PCI bus.
+- **Storage:** ext4 and swap.
+- **Networking:** IPv4, Unix sockets, TUN, policy routing, and nftables NAT and masquerading.
+- **Syscalls for ordinary programs:** `futex`, `epoll`, `eventfd`, POSIX timers, file locking, uid and gid changes, Unix98 ptys, seccomp filters and `madvise`.
+- **Shutdown:** the i8042 keyboard and VT keyboard handler, so Firecracker's **Ctrl-Alt-Del** shuts the VM down cleanly.
+
+The build also patches two kernel defaults:
+
+- **Smaller memory map.** x86-64 normally reserves `struct page` memory in 128 MB sections, mapped with 2 MB pages. minlin shrinks sections to 32 MB and maps them with 4 KB pages. This frees about 1.5 MB on a 32 MB guest.
+- **Overcommit set to "always".** Go programs reserve tens of MB of address space up front, which the default heuristic refuses on a small guest with no swap.
+
+## Kernel limits
+
+These features are missing from the minlin kernel. Many programs handle a missing feature themselves, so test your program before assuming it needs one.
+
+| Missing | Symptom | Kernel option |
+| --- | --- | --- |
+| `#!` scripts | `Exec format error` | `BINFMT_SCRIPT` |
+| `timerfd_*` | `ENOSYS` | `TIMERFD` |
+| `signalfd` | `ENOSYS` | `SIGNALFD` |
+| `inotify_*` | `ENOSYS` | `INOTIFY_USER` |
+| `memfd_create`, real tmpfs, `/dev/shm` | `ENOSYS`, or no such file | `SHMEM`, `TMPFS` |
+| System V IPC (`shmget` and others) | `ENOSYS` | `SYSVIPC` |
+| `io_uring` | `ENOSYS` | `IO_URING` |
+| Linux AIO (`io_setup`) | `ENOSYS` | `AIO` |
+| `membarrier` | `ENOSYS` | `MEMBARRIER` |
+| `rseq` | `ENOSYS` (glibc copes) | `RSEQ` |
+| `bpf` | `ENOSYS` | `BPF_SYSCALL` |
+| IPv6 | `EAFNOSUPPORT` | `IPV6` |
+| Raw packet sockets | `EAFNOSUPPORT` | `PACKET` |
+| Namespaces and containers | `EINVAL` from `unshare` | `NAMESPACES` |
+| Cgroups | Nothing to mount | `CGROUPS` |
+| `/sys` | No such directory | `SYSFS` |
+| Core dumps | None written | `COREDUMP` |
+| Multiple CPUs | One CPU seen | `SMP` |
+| Kernel modules | Everything must be built in | `MODULES` |
+| Partition tables | Only whole-disk filesystems and swap | `MSDOS_PARTITION`, `EFI_PARTITION` |
+
+## Add a kernel option
+
+Every app shares the kernel, so each option costs all of them memory. Where you can, change the app instead. For example, use a flag that avoids the feature, or name an interpreter instead of enabling `BINFMT_SCRIPT`.
+
+If your app does need an option:
+
+<Steps>
+  <Step title="Add it to build-linux.sh">
+    Add the option to `configure_kernel` in `build-linux.sh`. Include a comment naming the app and saying why it needs the option.
+  </Step>
+  <Step title="Rebuild and confirm it stuck">
+    ```bash
+    ./build-linux.sh
+    grep CONFIG_FOO linux-src/linux/.config
+    ```
+
+    `olddefconfig` silently drops an option whose dependencies aren't met. If the line is missing, enable those dependencies too.
+  </Step>
+  <Step title="Measure the cost">
+    Compare `mem: N KiB free` in the boot banner before and after the change.
+  </Step>
+</Steps>
+
+<Note>
+  `build-linux.sh` deletes the kernel tree and rebuilds from scratch every time. Changes to `init.c` also need a kernel rebuild, because init is built into the kernel.
+</Note>
+
+## Compare with a full kernel
+
+To check whether a failure is caused by the minimal kernel, build a full kernel with the same init:
+
+```bash
+./build-linux.sh full
+MEM=64 ./boot-qemu.sh
+```
+
+This builds `x86_64_defconfig` plus `kvm_guest.config`, with the few options init and the apps rely on. If your app works on the full kernel, the minimal kernel is missing an option.
+
+<Warning>
+  `build-linux.sh full` replaces the minimal kernel in `sys/`. Run `./build-linux.sh` afterwards to restore it.
+</Warning>
