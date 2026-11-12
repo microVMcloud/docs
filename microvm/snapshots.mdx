@@ -1,0 +1,41 @@
+---
+title: "Disk snapshots"
+description: "Save and restore a stopped VM's disk from the VM detail page."
+---
+
+Use **Disk snapshots** on a VM's detail page to save its disk before changing an application or replacing the disk image. You can keep up to five snapshots per VM.
+
+A snapshot copies the main disk. It does not include the VM's memory or swap disk. Its allocated size is billed as disk storage, including while the VM is stopped.
+
+<Warning>
+  Snapshots stay on the VM's compute node and are deleted with the VM. They do not protect against losing the host. Keep a separate copy of any data you need to recover after host loss.
+</Warning>
+
+## Take a snapshot
+
+1. Stop application writes and sync data if needed.
+2. Click **Stop** and wait until the VM is fully `stopped`.
+3. Under **Disk snapshots**, optionally enter a **Name**. Leave it empty for a generated name.
+4. Click **Take snapshot**.
+5. Wait for the snapshot's status to become `ready` before relying on it.
+
+The VM must have a disk and must not have disk replacement or SSH key installation waiting for its next start. If the page reports a pending disk change, start the VM once, then stop it before taking the snapshot. Snapshot creation also needs sufficient balance and disk space on the node.
+
+The table shows each snapshot's name, status, allocated size, and creation time. An `error` entry includes its failure message. Delete a failed snapshot and try again after resolving the cause.
+
+## Restore a snapshot
+
+1. Stop the VM and wait until it is fully `stopped`.
+2. Find a `ready` snapshot and click **Restore**.
+3. Confirm that you want to replace the current disk.
+4. Wait for restoration to finish, then click **Start**.
+
+<Warning>
+  Restoring discards the current disk's contents and any disk replacement waiting for the next start. Take a snapshot of the current disk first if you need to keep it.
+</Warning>
+
+Restoration runs asynchronously. A start request waits for the disk restore to finish. The restored disk contains the SSH authorized keys and SSH host key saved in that snapshot.
+
+## Delete a snapshot
+
+Click **Delete** beside a `ready` or `error` snapshot and confirm. You can delete snapshots while the VM is running or stopped, as long as the snapshot is not being restored. Deletion is permanent and frees a snapshot slot after it completes.

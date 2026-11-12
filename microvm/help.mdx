@@ -1,0 +1,62 @@
+---
+title: "Help and troubleshooting"
+sidebarTitle: "Help"
+description: "Use the dashboard's Help section and diagnose common VM, image, networking, and billing problems."
+---
+
+The dashboard's **Help** section includes a quickstart and guides to images, VMs, Linux, custom kernels, networking, plans, billing, and the CLI. Custom-domain guidance appears when that feature is enabled. You can read **Help** without signing in.
+
+For more detail, use the [VM guide](/microvm/vms), [networking guide](/microvm/networking), and [minlin troubleshooting](/minlin/troubleshooting).
+
+## A VM stays pending or shows an error
+
+A new VM waits in `pending` until the platform places it on a host. Allow a minute or two if a new host needs to start.
+
+Open the VM and read the status reason, error message, and **Activity** entries. The platform retries failed operations, but can give up after repeated failures to start, resume, suspend, or restore. Resolve the reported cause before requesting the action again. If the page says the host is not responding, displayed status may be out of date while the platform retries.
+
+## A VM does not boot
+
+Check **Console** for serial output. Click **Refresh**, or enable **auto-refresh**.
+
+- For Linux, use a Linux `bzImage` and an ext4 application disk.
+- Check the minimum RAM shown for your kernel.
+- Confirm that your disk includes the files and startup configuration your init expects.
+- For custom kernels, check compatibility with Firecracker and its VirtIO devices.
+
+See [minlin init](/minlin/init) for Linux program startup configuration.
+
+## The hostname does not load the application
+
+Confirm the VM is running and has an **HTTP(S) hostname** forward. Check that the guest runs an HTTP server on the forward's guest port and listens on the guest's network interface.
+
+The public HTTPS route forwards plain HTTP to your guest. A guest service expecting TLS on that port will not work with this route. Inspect the console for application startup errors.
+
+If a custom domain fails, expand **DNS records** and compare both records with your DNS provider. Click **Check now**, then read the domain's error message. Even an active domain needs the VM's HTTP(S) hostname forward.
+
+## SSH does not connect
+
+Check that you selected a public key when creating the Linux VM and used a disk that starts sshd. Add a **TCP** forward to guest port `22`, then use its assigned public port in your SSH command.
+
+The default HTTPS route consumes a forward slot. If you reach your allowance, remove an unused route or add funds to upgrade from trial. Check the VM's **SSH** details for pending key installation and its host-key fingerprint.
+
+## The console ignores commands
+
+Console input is available while the VM is running. Your guest must read from the serial console for typed commands to work. A VM that only prints application logs may have no shell waiting for input.
+
+If the page reports that console input requires a restart or host software update, follow the message or contact support.
+
+## An image upload or configuration change fails
+
+Check the size and image-count limits shown on **Images**. Kernel uploads must be supported x86-64 ELF or Linux `bzImage` files. Disk images must have a size divisible by 512 bytes, and Linux needs ext4.
+
+Wait until a VM is fully stopped before changing memory, swap, arguments, or images. Resource growth must fit on its current node as well as within your plan. A kernel replacement must be the same type as the existing kernel.
+
+## A VM stops because of funds
+
+Open **Billing** to check your balance and transactions. Add funds, wait for payment confirmation, then start the VM again. Creating or starting a VM can require more than the remaining balance because the platform checks that you can cover an hour at its maximum estimate.
+
+See [Billing](/microvm/billing) for charges that continue while stopped or suspended.
+
+## Get support
+
+Email [support@microvm.cloud](mailto:support@microvm.cloud). Include the VM ID, the action you attempted, the error message, and relevant console output. The dashboard footer also links to **Discord**.

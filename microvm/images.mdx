@@ -1,0 +1,45 @@
+---
+title: "Images"
+description: "Upload kernel and disk images, use public images, and manage your image allowance."
+---
+
+Open **Images** to manage the files you use to create VMs. Every VM needs a kernel image. Linux VMs also need an ext4 disk image containing their programs and files.
+
+## Image types
+
+| Type | Supported files | Size limit |
+| --- | --- | --- |
+| Kernel | An x86-64 Linux `bzImage` or a compatible x86-64 ELF custom kernel | 256 MiB |
+| Disk | A raw block-device image, such as an ext4 `diskimage` for Linux or an ext2 `disk.img` for a custom kernel | Your plan's disk limit |
+
+Disk images must have a size that is a multiple of 512 bytes. Upload the block-device image itself. For Linux, use an ext4 filesystem image that the kernel and init can boot.
+
+See [Build and boot](/minlin/build-and-boot) to build minlin's kernel and application disks.
+
+## Upload an image
+
+1. Under **Upload**, select a **Type**. **Auto-detect** recognizes ELF and Linux kernel headers as kernels and treats other files as disks. You can also select **Kernel (.elf or bzImage)** or **Disk image** explicitly.
+2. Choose the **File**.
+3. Optionally enter a **Name**. If you leave it empty, the uploader derives a name from the file name.
+4. Click **Upload** and wait for the upload to complete.
+
+Image names can contain up to 40 characters. Start with a letter or digit, and use letters, digits, spaces, periods, underscores, or hyphens.
+
+The browser compresses disk images during upload when supported. Size limits apply to the original, uncompressed image.
+
+After upload, the table shows the image's name, ID, type, size, SHA-256 prefix, and upload time. Kernels also show whether they are Linux or custom kernels. You can select the image on **New VM**, or use it to [change a stopped VM](/microvm/vms#change-a-stopped-vm).
+
+## Use public images
+
+**Public images** lists kernels and disks shared with all users. Select them on the VM creation form just as you would your own images. Public images do not count toward your stored-image allowance.
+
+Your VM still has to fit your plan. For example, you cannot create a VM from a public disk image larger than your plan's disk limit.
+
+Each VM gets its own copy of a disk image. Changes made inside one VM do not change the uploaded image or another VM's disk.
+
+## Delete an image
+
+Click **Delete** beside one of your unused images and confirm. You cannot delete an image while a VM references it, even if the VM is stopped. Delete the referencing VM or switch it to another image first.
+
+The page shows how many private images you have stored. If you reach your allowance, delete an unused image or add funds to move from trial to prepaid. Check [Billing](/microvm/billing) for your current limits.
+

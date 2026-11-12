@@ -1,7 +1,43 @@
 ---
 title: "microVM overview"
 sidebarTitle: "Overview"
-description: "microVM Overview"
+description: "Find your way around the microVM Cloud dashboard and manage your microVMs."
 ---
 
-microVM Cloud
+microVM Cloud runs your Linux programs or custom kernels in Firecracker microVMs. Each VM has one vCPU, its own memory, and a hostname. You can use public images or upload your own kernel and disk images.
+
+Open the [dashboard](https://microvm.cloud) and sign in to manage your account. To launch your first web server with public images, follow the [quickstart](/quickstart).
+
+## Dashboard sections
+
+The dashboard's navigation gives you access to these sections:
+
+| Section | What you can do |
+| --- | --- |
+| [VMs](/microvm/vms) | Create VMs, manage their state, change their configuration, and inspect usage and console output. |
+| [Images](/microvm/images) | Upload kernels and disks, manage your images, and browse public images. |
+| [Billing](/microvm/billing) | Add funds, compare plan limits, and review prices, transactions, and usage. |
+| [API & Keys](/microvm/api-and-keys) | Download the command-line tool, create API keys, and save SSH public keys. |
+| [Help](/microvm/help) | Read the built-in guides and troubleshoot common problems. |
+
+On a VM's detail page, you can also configure [networking and custom domains](/microvm/networking) and manage [disk snapshots](/microvm/snapshots).
+
+## Choose a workload
+
+For Linux, select a Linux `bzImage` kernel and an ext4 disk image containing your programs. Linux VMs need at least 32 MiB of RAM. The form shows the minimum for your chosen kernel, which can be higher for larger images.
+
+[minlin](/minlin/overview) provides a minimal Linux kernel and example disks for web servers, SSH, Python, and other workloads. Use a public image to get started, or [build your own kernel and disk](/minlin/build-and-boot).
+
+For a custom kernel, upload a compatible x86-64 ELF image. Your kernel must support Firecracker's microVM environment and the VirtIO devices it uses. The minimum memory depends on the kernel's size and starts at 4 MiB.
+
+## Account and appearance
+
+Open the account menu at the top of the dashboard to see your identity and balance. Click **Balance** to open **Billing**, or **Log out** to end your session.
+
+Use the color theme picker to select **System**, **Light**, **Dark**, **C64**, or **Cassette futurism**. Your browser saves this preference.
+
+## Plans and usage
+
+New accounts receive trial credit. Adding funds moves your account to the prepaid plan, shown as `paid` in some dashboard views. Both plans charge for usage and have limits on VM count, memory, disks, images, forwards, and custom domains.
+
+Check **Billing → Plans and prices** for current rates and limits. Stopped VMs can still incur disk charges, and suspended VMs retain billable memory. See [Billing](/microvm/billing) for details.

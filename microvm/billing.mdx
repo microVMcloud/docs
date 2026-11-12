@@ -1,0 +1,67 @@
+---
+title: "Billing"
+description: "Add prepaid funds and understand the dashboard's balances, plans, and usage charges."
+---
+
+Open **Billing** to see your balance, add funds, and review account usage. **Plans and prices** shows the rates and limits currently configured for your account.
+
+## Read the account summary
+
+| Card | Meaning |
+| --- | --- |
+| **Balance** | Your remaining credit and current plan. |
+| **This month** | Recorded usage cost since the start of the month. |
+| **Unbilled (this hour)** | Accumulated usage that has not yet been deducted. |
+| **Max hourly burn** | A maximum hourly estimate for VMs requested to run or remain suspended, based on full CPU and configured resources. |
+
+The maximum estimate can be higher than actual usage. Network egress is charged separately and is not included in the maximum hourly estimate. Disk storage can still incur charges when all VMs are stopped, even if **Max hourly burn** shows zero.
+
+## Add funds
+
+1. Under **Add funds**, enter an **Amount** within the range shown by the form.
+2. Click **Pay with Stripe**.
+3. Complete payment on the Stripe Checkout page.
+4. Return to **Billing** and check your balance and transactions.
+
+Your balance updates when Stripe confirms the payment. Funding a trial account moves it to the prepaid plan, which appears as `paid` in some views. If payments are unavailable on an installation, the page says that payments are not configured.
+
+## Compare plans
+
+**Plans and prices** compares **Trial** and **Prepaid** and marks your current plan. It lists:
+
+- Trial credit and the minimum top-up.
+- Running VM, CPU, memory, disk, and network egress rates.
+- VM count and boot memory limits.
+- Main disk and disk image upload limits.
+- The separate Linux swap allowance.
+- Port forwards, custom domains, and stored-image allowances.
+
+Use this table for current prices and limits. Public images do not consume your stored-image allowance, but VMs created from them must fit your plan's resource limits.
+
+## How usage is charged
+
+The platform measures usage continuously and normally deducts it from your balance at the top of each hour. Trial accounts spend trial credit using the same usage rates.
+
+| Resource | How it is measured |
+| --- | --- |
+| Running VM | Time spent running. The base charge stops while suspended or stopped. |
+| CPU | CPU time actually used, rather than elapsed wall-clock time. |
+| Memory | Boot RAM plus plugged memory while running or suspended. |
+| Disk | Allocated space on VM disks, including swap, plus snapshots. Storage remains billable while stopped. |
+| Network egress | Bytes sent by the VM. Incoming traffic is free. |
+
+For example, a VM configured with a 128 MiB sparse disk is billed for the disk space actually allocated, rather than automatically for all 128 MiB. Snapshots add their own allocated storage. The pricing table expresses disk rates per GiB-month using a 730-hour month.
+
+Stopping a VM releases its RAM and stops its running-time and CPU charges. Suspending preserves RAM and its memory charges. Deleting a VM removes its disk and snapshots.
+
+## Review transactions and usage
+
+**Transactions** shows each credit or debit, its description, date, and resulting balance. **Usage** shows recorded periods for each VM, including CPU seconds, RAM and disk MiB-hours, running hours, egress, and cost.
+
+Open a VM's detail page to see its own **Usage** and **Activity**. The **Last hour** card there helps you compare recent measured cost with its maximum estimate.
+
+## Insufficient funds
+
+Creating, starting, or resuming VMs requires enough balance to cover at least one hour of estimated account usage. This check uses a maximum resource estimate, so a small positive balance can still be insufficient.
+
+If your balance runs out, the platform stops running and suspended VMs. Their disks remain. Add funds, then start the VMs again. Disk and snapshot storage can continue to accrue charges while the VMs remain stopped.

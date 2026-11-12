@@ -1,0 +1,123 @@
+---
+title: "VMs"
+description: "Create microVMs, manage their lifecycle, and use the VM detail page."
+---
+
+Open **VMs** to see your virtual machines and your account's VM allowance. The table shows each VM's name, status, hostname, RAM, disk size, and CPU usage while running. Click a VM's name to open its detail page.
+
+## Create a VM
+
+Click **New VM** and configure the following fields.
+
+### Name and kernel
+
+Enter a **Name** of up to 40 characters. Start with a letter or digit. You can also use spaces, periods, underscores, and hyphens.
+
+Choose a **Kernel image** from your own images or the public images. If no kernel is available, upload one on the [Images](/microvm/images) page first.
+
+### Memory
+
+Set **RAM (MiB)** between the minimum shown for the kernel and your plan's maximum. Linux kernels require at least 32 MiB. Custom kernels require at least 4 MiB. Larger kernels can require more.
+
+For Linux, you can also set **Swap (MiB)**. Use `0` for none, or at least 8 MiB within your plan's swap allowance. The VM receives this disk as `/dev/vdb`, and minlin enables it at boot. Swap has a separate size allowance from the main disk and is billed as disk storage.
+
+### Storage
+
+Choose a **Disk** source:
+
+| Source | Behavior |
+| --- | --- |
+| **From disk image** | Creates a private copy of the selected image at the image's size. |
+| **Blank ext2 disk** | Creates an empty ext2 filesystem at the requested **Disk size (MiB)**. |
+| **Blank raw disk** | Creates an unformatted disk at the requested size. |
+| **No disk** | Creates the VM without a main disk. |
+
+Linux VMs require **From disk image** with an ext4 image. The other sources are available for custom kernels. Blank disks must be at least 8 MiB. All disks must fit within your plan's disk limit, including copies of public images.
+
+### Arguments and SSH keys
+
+Use **App arguments** for your kernel's command-line settings. For Linux, these are extra kernel parameters; anything after `--` goes to init. The field accepts up to 256 characters, using letters, digits, spaces, and `. _ : / = , + @ % -`.
+
+For Linux, select up to 10 saved public keys under **SSH keys for root**. The platform writes them to `/root/.ssh/authorized_keys` before the first boot. Your disk image must run an SSH server to accept connections. Save keys on [API & Keys](/microvm/api-and-keys#ssh-keys) before creating the VM.
+
+### Networking and startup
+
+Leave **HTTPS hostname** checked to route HTTPS requests for the VM's hostname to guest port `80`. This route counts toward your port-forward allowance. You can change it later under **Port forwarding**.
+
+Leave **Start after creating** checked to boot the VM automatically. Clear it to create a stopped VM.
+
+Review the hourly estimate, then click **Create VM**. The estimate assumes a fully busy CPU and excludes network egress. Actual resource usage can cost less. Creating or starting a VM requires enough balance to cover at least one hour of your account's usage at the platform's maximum estimate.
+
+## Manage the VM's state
+
+Use the buttons at the top of the detail page:
+
+| Action | What happens |
+| --- | --- |
+| **Start** | Boots a stopped VM with its saved configuration and disk. |
+| **Stop** | Ends the VM and releases its memory. Its disk and snapshots remain. |
+| **Suspend** | Pauses a running VM in memory. It uses no CPU but retains billable RAM. |
+| **Resume** | Continues a suspended VM from its paused state. |
+| **Delete** | Permanently removes the VM, its disk, and its snapshots. |
+
+Actions run asynchronously. Wait for the status to settle before making the next change. A suspended VM appears as `paused` in status displays. Suspending keeps memory on the same host; it does not save a memory snapshot to disk.
+
+<Warning>
+  Stopping a Linux VM ends it without a clean guest shutdown. Sync your data or stop application writes before clicking **Stop**.
+</Warning>
+
+A new VM stays `pending` until the platform places it on a compute node. Placement usually takes seconds, but can take a minute or two when a new node must start. The VM receives its hostname when placed.
+
+## Read the resource summary
+
+The cards at the top of the page show:
+
+- **CPU**: current CPU use while running.
+- **Memory**: boot RAM and any currently plugged memory.
+- **Disk**: allocated storage against the configured capacity, with swap and snapshot information when present.
+- **Last hour**: measured cost over the last hour, with a maximum hourly estimate.
+- **Network sent** and **Network received**: traffic totals over the last hour.
+
+Disk capacity and allocated disk space are different. Billing uses allocated space. See [Billing](/microvm/billing#how-usage-is-charged).
+
+## Change a stopped VM
+
+Click **Stop** and wait until the VM is fully `stopped`. Under **Details**, you can then change:
+
+| Field | How to change it |
+| --- | --- |
+| **Kernel** | Select another kernel of the same type, then click **Save**. |
+| **Disk** | Select a disk image, then click **Replace disk** and confirm. |
+| **Memory** | Set **RAM (MiB)** and click **Save**. Existing VMs with hot-plug memory also show that allowance. |
+| **Swap** | Set the Linux VM's swap size and click **Save**. Use `0` to remove it. |
+| **App args** | Enter the new arguments and click **Save**. |
+
+Changes take effect at the next start. The page marks pending kernel, disk, and swap changes. Memory and disk growth must also fit on the VM's existing node; VMs do not migrate to another node.
+
+<Warning>
+  Replacing a disk discards everything on the current disk at the next start. Take a [disk snapshot](/microvm/snapshots) first if you need to keep its contents. Resizing swap recreates the swap disk empty.
+</Warning>
+
+Changing the kernel preserves the disk. You cannot switch an existing VM between Linux and a custom kernel. If a new kernel requires more RAM, increase memory before selecting it.
+
+## Connect to the VM
+
+Under **Details**, **Hostname** opens the VM's HTTPS address. **Node IP** shows the host's public IP. Configure [port forwarding and custom domains](/microvm/networking) further down the page.
+
+For Linux VMs created with SSH keys, **SSH** lists the installed keys and the VM's SSH host-key fingerprint. After you add a TCP forward to guest port `22`, this section provides a command you can copy. Check that the fingerprint matches when you first connect.
+
+## Use the console
+
+The **Console** section displays the guest's serial output. Click **Refresh** to fetch output, or enable **auto-refresh** to follow it. **auto-scroll** keeps the latest output visible. Drag the console's corner to resize it.
+
+While the VM is running, type into the input field and press Enter or click **Send**. The console sends the text and an Enter key to the guest. Your guest must run a program that reads serial input, such as a shell, for commands to work.
+
+The **Ctrl+C**, **Ctrl+D**, **Ctrl+Z**, and **Ctrl+\** buttons send control characters. In the input field, Ctrl+C with no selection and Ctrl+D also go to the guest.
+
+Click **Clear** and confirm to permanently empty the console log.
+
+## Review usage and activity
+
+**Usage** lists metered periods with CPU seconds, memory and disk in MiB-hours, running hours, egress, and cost. **Activity** lists actions, state changes, and errors for this VM.
+
+If the VM shows an error or a host warning, read its message and check [Help and troubleshooting](/microvm/help).

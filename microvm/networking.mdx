@@ -1,0 +1,81 @@
+---
+title: "Networking"
+description: "Configure HTTP, TCP, and UDP forwards, connect over SSH, and add custom domains."
+---
+
+Open a VM from **VMs** to configure its network access. The **Details** section shows its hostname and node IP after placement. A hostname has the form `vm<id>.node<id>.microvmcloud.online`.
+
+VMs can make outbound internet connections. Inbound connections reach your application through the routes in **Port forwarding**.
+
+## HTTP(S) hostname
+
+If you leave **HTTPS hostname** checked when creating a VM, the platform routes HTTPS requests for its hostname to guest port `80`.
+
+The platform terminates TLS and forwards plain HTTP to your guest. Run an HTTP server on the selected guest port; your application does not need to handle the public HTTPS certificate.
+
+To add or change the route:
+
+1. Open **Port forwarding** on the VM's detail page.
+2. If an HTTP route already exists, click **Remove** beside it.
+3. Select **HTTP(S) hostname** under **Protocol**.
+4. Enter your application's **Guest port**, such as `80` or `8080`.
+5. Click **Add**. You do not need a **Public port** for this route.
+
+You can have one HTTP(S) hostname route per VM. It counts toward your plan's port-forward allowance.
+
+## TCP and UDP forwards
+
+Use a TCP or UDP forward for services that do not use the HTTP(S) route.
+
+1. Select **TCP** or **UDP** under **Protocol**.
+2. Enter the **Guest port** where your service listens, between `1` and `65535`.
+3. Leave **Public port** empty for automatic allocation, or choose an available port within the range shown on the page.
+4. Click **Add**.
+
+Connect to the VM's hostname at the public port shown in the table. Public ports are allocated on the node, so a requested port might already be in use. Leave the field empty to let the platform choose one.
+
+Click **Remove** beside a forward to remove that route. Removing the default HTTP route frees a slot if you need it for another service.
+
+## Connect over SSH
+
+1. Save your public key in [API & Keys → SSH keys](/microvm/api-and-keys#ssh-keys).
+2. Create a Linux VM with a disk that runs sshd, such as minlin's `sshd` app. Select your key under **SSH keys for root**.
+3. Add a **TCP** forward to **Guest port** `22`.
+4. Copy the SSH command from **Details → SSH** on the VM page.
+
+The command has this form. Replace the placeholders with the values shown for your VM:
+
+```bash
+ssh -p <public-port> root@<vm-hostname>
+```
+
+Check the host-key fingerprint against the fingerprint shown on the VM page when you first connect. The platform creates a new host key for each VM when the disk includes `/etc/ssh`.
+
+Saving a key does not install an SSH server. Your disk must include and start sshd. Deleting a saved key from your account does not remove it from existing VM disks.
+
+## Add a custom domain
+
+When custom domains are enabled, the VM page includes **Custom domains**. A domain uses the VM's HTTP(S) hostname route and receives an automatically renewed Let's Encrypt certificate.
+
+1. Ensure the VM has an **HTTP(S) hostname** forward to your web application's guest port.
+2. Under **Custom domains**, enter a hostname such as `app.example.com` and click **Add**.
+3. Expand **DNS records** and create the two CNAME records shown at your DNS provider.
+
+| Record name | Type | Target |
+| --- | --- | --- |
+| `app.example.com` | CNAME | Your VM's hostname, as shown on the page |
+| `_acme-challenge.app.example.com` | CNAME | The challenge target shown for this domain |
+
+Use the exact challenge target from the dashboard. Keep the challenge CNAME in place so the platform can renew the certificate.
+
+For an apex domain such as `example.com`, use an A record pointing to the **Node IP** instead of the first CNAME. Keep the `_acme-challenge` CNAME.
+
+Once DNS records appear, certificate issuance and installation can take a few minutes. The domain moves from `pending` through `installing` to `active`. Click **Check now** to retry the DNS check and certificate setup immediately. The domain card shows errors and the certificate's expiry date.
+
+Click **Remove** to stop serving a custom domain. Your plan's domain allowance appears below the form.
+
+## Linux guest configuration
+
+The platform passes network details and the VM's hostname to Linux through the `ip=` kernel parameter. minlin's init configures the guest interface from it. DNS resolution inside the guest depends on the disk image's `/etc/resolv.conf`.
+
+If a service is unreachable, check that the VM is running, the application listens on the forwarded guest port and network interface, and the forward uses the right protocol. See [Help and troubleshooting](/microvm/help) for more checks.

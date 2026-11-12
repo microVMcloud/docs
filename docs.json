@@ -26,7 +26,14 @@
       {
         "group": "microVMs",
         "pages": [
-          "microvm/overview"
+          "microvm/overview",
+          "microvm/vms",
+          "microvm/images",
+          "microvm/networking",
+          "microvm/snapshots",
+          "microvm/billing",
+          "microvm/api-and-keys",
+          "microvm/help"
         ]
       },
       {

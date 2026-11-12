@@ -1,0 +1,115 @@
+---
+title: "API & Keys"
+description: "Download the CLI, create and revoke API keys, and save SSH public keys for Linux VMs."
+---
+
+Open **API & Keys** to manage automation credentials and SSH public keys. API keys authenticate the CLI and HTTP API. SSH keys let you log in to Linux guests that run sshd.
+
+## Create an API key
+
+1. Under **API keys**, enter a **Name**, such as `laptop` or `ci`.
+2. Click **Create key**.
+3. Click **Copy** in the new-key card and store the key securely.
+4. Click **Done** when you have saved it.
+
+The full token is shown only once. The platform stores only its hash. You can keep up to 10 active API keys. The table shows each key's prefix, creation time, and last use.
+
+API keys can manage your account's VMs, images, snapshots, forwards, domains, SSH keys, and billing. Creating or revoking API keys requires a browser login.
+
+Click **Revoke** beside a key and confirm to disable it immediately. Commands or scripts using it will stop authenticating.
+
+## Download and use the CLI
+
+Under **Command-line tool**, click **Download microvmcloud**, or download it from a terminal. The CLI requires Bash 4 or later, `curl`, and `jq`.
+
+```bash
+curl -fsSLo microvmcloud https://microvm.cloud/cli/microvmcloud
+chmod +x microvmcloud
+./microvmcloud login
+```
+
+Paste your API key when prompted. Then inspect your account and available images:
+
+```bash
+./microvmcloud whoami
+./microvmcloud image list
+./microvmcloud vm list
+./microvmcloud help
+```
+
+The CLI accepts VM and image IDs or unique names. Use the ID if a name is ambiguous.
+
+To create a VM from your own minlin build, upload the kernel and disk, then create the VM:
+
+```bash
+./microvmcloud image upload sys/bzImage --name my-kernel
+./microvmcloud image upload sys/diskimage --kind disk --name my-disk
+./microvmcloud vm create my-app --kernel my-kernel --disk-image my-disk --ram 32
+./microvmcloud vm wait my-app running
+./microvmcloud vm show my-app
+```
+
+Use a larger `--ram` value if the kernel requires it. For build instructions, see [Build and boot](/minlin/build-and-boot).
+
+Common commands correspond to controls on the VM detail page:
+
+| Task | Command |
+| --- | --- |
+| Follow serial output | `./microvmcloud vm console my-app --follow` |
+| Send a command to the serial console | `./microvmcloud vm send my-app uname -a` |
+| Stop or start | `./microvmcloud vm stop my-app` / `./microvmcloud vm start my-app` |
+| Suspend or resume | `./microvmcloud vm suspend my-app` / `./microvmcloud vm resume my-app` |
+| Add a TCP forward | `./microvmcloud vm forward-add my-app tcp 22` |
+| Take a snapshot while stopped | `./microvmcloud vm snapshot my-app before-update` |
+| Review billing | `./microvmcloud billing` |
+
+Commands that change VM state return before the change completes. Use `vm wait` when another command depends on a state transition. Add `--json` for raw API responses:
+
+```bash
+./microvmcloud --json vm list
+```
+
+For automation, you can supply `BMC_API_KEY` through your environment instead of saving it with `login`. `BMC_URL` or `--url` selects another portal URL. `logout` removes saved local CLI credentials; revoke the key in the portal if you also want to disable it.
+
+## Call the HTTP API
+
+Send your API key as a bearer token. For example, with `BMC_API_KEY` set in your environment:
+
+```bash
+curl --fail-with-body --silent --show-error \
+  --header "Authorization: Bearer ${BMC_API_KEY}" \
+  https://microvm.cloud/api/vms
+```
+
+API-key requests do not require a CSRF token. Most endpoints return JSON. Errors use an `error` field with a 4xx or 5xx HTTP status. Monetary fields ending in `_nanos` use one billion units per currency unit.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/me` | Account, balance, plan limits, and prices |
+| `GET /api/vms` | Your VMs |
+| `GET /api/vms/{id}` | One VM's details, routes, snapshots, usage, and events |
+| `GET /api/images` | Your images and public images |
+| `GET /api/billing` | Balance, transactions, and usage |
+| `GET /api/ssh-keys` | Saved SSH public keys |
+
+## SSH keys
+
+### Save a public key
+
+Under **SSH keys**, paste one OpenSSH public-key line into **Public key**. Use the contents of a `.pub` file, such as `~/.ssh/id_ed25519.pub`. If you need a key, generate one locally:
+
+```bash
+ssh-keygen -t ed25519
+```
+
+Optionally enter a **Name**, then click **Add key**. If omitted, the name is derived from the key's comment. The table shows its SHA-256 fingerprint and when it was added.
+
+You can save up to 20 public keys. Supported types include Ed25519, ECDSA, RSA with 2048–16384 bits, and supported security-key variants. Paste one key at a time without `authorized_keys` options before the key type. Never paste a private key.
+
+### Install keys on a VM
+
+Select up to 10 saved keys under **SSH keys for root** when creating a Linux VM. The platform writes them to `/root/.ssh/authorized_keys` before first boot. If the disk contains `/etc/ssh`, it also installs a new SSH host key for the VM.
+
+Use a disk that runs sshd, add a TCP forward to guest port `22`, and copy the connection command from the VM's **SSH** details. See [Connect over SSH](/microvm/networking#connect-over-ssh).
+
+Click **Delete** beside a saved key to remove it from future VM creation choices. Existing VMs keep their installed copy. To revoke guest access on an existing VM, remove the key from that guest's `/root/.ssh/authorized_keys`.
