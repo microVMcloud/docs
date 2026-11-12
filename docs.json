@@ -24,6 +24,12 @@
         ]
       },
       {
+        "group": "microVMs",
+        "pages": [
+          "microvm/overview"
+        ]
+      },
+      {
         "group": "minlin",
         "pages": [
           "minlin/overview",
