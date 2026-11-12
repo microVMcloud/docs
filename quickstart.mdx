@@ -1,37 +1,63 @@
 ---
 title: "Quickstart"
-description: "Get started with microVM Cloud"
+description: "Launch your first web server from public images in the microVM Cloud dashboard."
 ---
 
-This guide describes how to create your first microVM. We will use the public images.
+Create a microVM with a public minlin kernel and a lighttpd disk image, then open its website in your browser.
 
 ## Prerequisites
 
-Before you begin, you must have:
+You need a trial or prepaid account. [Sign up at microvm.cloud](https://microvm.cloud) if you do not have one.
 
-- A trial or paid account. Sign up at [https://microvm.cloud](https://microvm.cloud)
-
-## Creating a microVM
+## Create a microVM
 
 <Steps>
-  <Step title="New VM">
-    Once you've logged in you should be on your VMs page. Click on the "New VM" button.
+  <Step title="Open the New VM form">
+    Sign in to the [dashboard](https://microvm.cloud) and open **VMs**. On the **Virtual machines** page, click **New VM**.
   </Step>
-  <Step title="Configure">
-  On the "New VM" page you will configure your microVM.
 
-  - Give the VM a name. ie "Web server"
-  - For the "kernel image" select "minlin 7.3.3"
-  - In the "Memory" section you can leave the defaults
-  - In the "Storage" section "Disk" should be set to "From disk image". From the "Disk image" dropdown select "lighttpd"
-  - Leave all options as default. Since this is a web server we want the HTTPS hostname. We also want it to start as soon as it is created.
-  - Click "Create VM"
+  <Step title="Name the VM and choose a kernel">
+    - In **Name**, enter `web-server`.
+    - In **Kernel image**, select the public minlin Linux kernel. Its option includes **Linux** and the image size.
+
+    Image names can include version numbers. Choose the available minlin kernel; you do not need a specific version for this guide.
   </Step>
-  <Step title="Test">
-  Creating the VM will take you to its details. In the "Details" section click on the Hostname - it should be in the format vmXXX.nodeXXX.microvmcloud.online. This should load the test web page being hosted on your microVM.
+
+  <Step title="Configure memory and storage">
+    Under **Memory**, keep the **RAM (MiB)** value selected by the form. Selecting a Linux kernel raises it to at least 32 MiB. Leave **Swap (MiB)** at `0`.
+
+    Under **Storage**, use these settings:
+
+    | Field | Selection |
+    | --- | --- |
+    | **Disk** | **From disk image**, selected automatically for Linux |
+    | **Disk image** | The public lighttpd image |
+
+    The disk image contains the web server and its files. Each VM gets its own copy.
+  </Step>
+
+  <Step title="Create and start the VM">
+    Leave **App arguments** empty and **SSH keys for root** unselected. You do not need SSH for this example.
+
+    Keep both checkboxes selected:
+
+    - **HTTPS hostname** routes the VM's HTTPS address to the web server on guest port `80`.
+    - **Start after creating** starts the VM automatically.
+
+    Review the hourly estimate, then click **Create VM**. The dashboard opens your VM's detail page.
+  </Step>
+
+  <Step title="Open your website">
+    Wait for the VM's status to become `running`. Its hostname appears after the platform assigns it to a host.
+
+    Under **Details**, click the **Hostname** link. It has the form `vm<id>.node<id>.microvmcloud.online` and opens your web server's page in a new tab.
+
+    If the website does not load, find **Console** on the VM page and click **Refresh** to check the server's output. See [Help and troubleshooting](/microvm/help#the-hostname-does-not-load-the-application) for more checks.
   </Step>
 </Steps>
 
+For more VM settings and controls, see [VMs](/microvm/vms). To use your own kernel or disk, see [Images](/microvm/images).
+
 <Tip>
-  Need help? Reach out to us at [support@microvm.cloud](mailto:support@microvm.cloud).
+  Need help? Email [support@microvm.cloud](mailto:support@microvm.cloud).
 </Tip>
