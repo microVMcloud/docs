@@ -14,26 +14,21 @@ Before you begin, you must have:
 ## Creating a microVM
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
-
-    ```bash
-    npm install your-package
-    ```
+  <Step title="New VM">
+    Once you've logged in you should be on your VMs page. Click on the "New VM" button.
   </Step>
   <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+  On the "New VM" page you will configure your microVM.
 
-    ```bash
-    your-cli init
-    ```
+  - Give the VM a name. ie "Web server"
+  - For the "kernel image" select "minlin 7.3.3"
+  - In the "Memory" section you can leave the defaults
+  - In the "Storage" section "Disk" should be set to "From disk image". From the "Disk image" dropdown select "lighttpd"
+  - Leave all options as default. Since this is a web server we want the HTTPS hostname. We also want it to start as soon as it is created.
+  - Click "Create VM"
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
-
-    ```bash
-    your-cli start
-    ```
+  <Step title="Test">
+  Creating the VM will take you to its details. In the "Details" section click on the Hostname - it should be in the format vmXXX.nodeXXX.microvmcloud.online. This should load the test web page being hosted on your microVM.
   </Step>
 </Steps>
 
