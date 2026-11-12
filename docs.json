@@ -3,11 +3,17 @@
   "theme": "mint",
   "name": "microVM Cloud",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#0B6CF2",
+    "light": "#6CB2FF",
+    "dark": "#0A5FD6"
   },
-  "favicon": "/favicon.svg",
+  "background": {
+    "color": {
+      "light": "#F8F9FB",
+      "dark": "#101318"
+    }
+  },
+  "favicon": "/favicon.png",
   "navigation": {
     "pages": [
       {
