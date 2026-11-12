@@ -59,13 +59,13 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:support@mintlify.com"
+        "href": "mailto:support@microvm.cloud"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "href": "https://microvm.cloud"
     }
   },
   "contextual": {
@@ -82,9 +82,9 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "x": "https://x.com/microvmcloud",
+      "github": "https://github.com/microvmcloud",
+      "linkedin": "https://linkedin.com/company/microvmcloud"
     }
   }
 }
