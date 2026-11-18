@@ -19,8 +19,15 @@
       {
         "group": "Getting Started",
         "pages": [
-          "index",
-          "quickstart"
+          "index"
+        ]
+      },
+      {
+        "group": "Quickstart",
+        "pages": [
+          "quickstart/overview",
+          "quickstart/ssh",
+          "quickstart/web-server"
         ]
       },
       {
@@ -94,5 +101,11 @@
       "github": "https://github.com/microvmcloud",
       "linkedin": "https://linkedin.com/company/microvmcloud"
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/quickstart",
+      "destination": "/quickstart/overview"
+    }
+  ]
 }
