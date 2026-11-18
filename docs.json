@@ -27,7 +27,8 @@
         "pages": [
           "quickstart/overview",
           "quickstart/ssh",
-          "quickstart/web-server"
+          "quickstart/web-server",
+          "quickstart/sshapi"
         ]
       },
       {
