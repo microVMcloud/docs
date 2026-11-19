@@ -13,47 +13,73 @@ You need a trial or prepaid account. [Sign up at microvm.cloud](https://microvm.
 
 <Steps>
 
-  <Step title="Save your SSH public key">
+  <Step title="Get API key">
+  
+    Sign in to the [dashboard](https://microvm.cloud) and open **API & Keys**. Under **API keys** enter a Name and click **Create key**. The key will be displayed. Copy it somewhere secure.
+
+  </Step>
+
+  <Step title="Prepare API script">
+
+    ```bash
+    curl -fsSLo microvmcloud https://microvm.cloud/cli/microvmcloud && chmod +x microvmcloud
+    ```
+    
+  </Step>
+
+  <Step title="Login with your API key">
+
+    ```bash
+    ./microvmcloud login
+    ```
+
+    Paste in your API key from the previous step.
+
+  </Step>
+
+  <Step title="Upload your SSH public key">
 
     <Warning>
       Never share your private SSH key. You only need to provide the public one.
     </Warning>
 
-    Sign in to the [dashboard](https://microvm.cloud) and open **API & Keys**. Under **SSH keys**, paste your public key into **Public key**, optionally enter a **Name**, and click **Add key**.
+    ```bash
+    ./microvmcloud ssh-key add <file.pub> --name MySSHKey
+    ```
+
+    Substitute the file.pub filename as needed.
 
     Use the contents of a `.pub` file, such as `~/.ssh/id_ed25519.pub`. If you need a key, generate one in your local terminal:
 
     ```bash
     ssh-keygen -t ed25519
     ```
-  </Step>
 
-  <Step title="Open the New VM form and choose images">
-    Open **VMs** and click **New VM**.
-
-    - In **Name**, enter `ssh-server`.
-    - In **Kernel image**, select the public `minlin 7.3.x` Linux kernel.
-    - Under **Storage**, keep **Disk** set to **From disk image** and select the public `sshd` disk image.
-
-    Image names can include version numbers. Choose the available minlin kernel and `sshd` disk image; you do not need specific versions for this guide.
   </Step>
 
   <Step title="Configure and start the VM">
-    Keep the **RAM (MiB)** value selected by the form, which is at least 32 MiB for Linux. Optionally, set **Swap (MiB)** at `32` and **App arguments** empty.
 
-    Under **SSH keys for root**, select the public key you saved. The platform installs it before the first boot.
+    ```bash
+    ./microvmcloud vm create "SSH VM" --kernel "minlin 7.3.5" --ram 32 --swap 32 --no-https --disk-image "openssh 10.5p1" --ssh-key MySSHKey
+    ./microvmcloud vm wait "SSH VM" running && ./microvmcloud vm show "SSH VM"
+    ./microvmcloud vm console "SSH VM" --follow
+    ```
 
-    Clear **HTTPS hostname** and keep **Start after creating** selected. Review the hourly estimate, then click **Create VM**.
+    Make note of the "Hostname:" value. it should be in the format vmXXXXX.nodeXXXXX.microvmcloud.online
 
-    The dashboard opens your VM's detail page. Wait for its status to become `running`.
+    Use Ctrl+C to exit the VM console.
+
   </Step>
 
   <Step title="Forward the SSH port">
-    Under **Port forwarding**, select **TCP** for **Protocol** and enter `22` for **Guest port**. Leave **Public port** empty so the platform assigns one, then click **Add**.
+
+    ```bash
+    ./microvmcloud vm forward-add "SSH VM" tcp 22 20005
+    ```
+
   </Step>
 
   <Step title="Connect over SSH">
-    Under **Details → SSH**, copy the connection command and run it in your local terminal. It has this form, using your VM's assigned public port and hostname:
 
     ```bash
     ssh -p <public-port> root@<vm-hostname>
@@ -63,6 +89,7 @@ You need a trial or prepaid account. [Sign up at microvm.cloud](https://microvm.
 
     For connection checks, see [Connect over SSH](/microvm/networking#connect-over-ssh).
   </Step>
+
 </Steps>
 
 For more VM settings and controls, see [VMs](/microvm/vms). To use your own kernel or disk, see [Images](/microvm/images).
