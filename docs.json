@@ -59,7 +59,8 @@
       {
         "group": "unikernel",
         "pages": [
-          "unikernel/FTL",
+          "unikernel/overview",
+          "unikernel/ftl",
           "unikernel/nanos"
         ]
       }
