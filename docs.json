@@ -55,6 +55,13 @@
           "minlin/kernel",
           "minlin/troubleshooting"
         ]
+      },
+      {
+        "group": "unikernel",
+        "pages": [
+          "unikernel/FTL",
+          "unikernel/nanos"
+        ]
       }
     ],
     "global": {
