@@ -60,7 +60,7 @@ You need a trial or prepaid account. [Sign up at microvm.cloud](https://microvm.
   <Step title="Configure and start the VM">
 
     ```bash
-    ./microvmcloud vm create "SSH VM" --kernel "minlin 7.3.5" --ram 32 --swap 32 --no-https --disk-image "openssh 10.5p1" --ssh-key MySSHKey
+    ./microvmcloud vm create "SSH VM" --kernel "minlin 7.3.6" --ram 32 --swap 32 --no-https --disk-image "openssh 10.5p1" --ssh-key MySSHKey
     ./microvmcloud vm wait "SSH VM" running && ./microvmcloud vm show "SSH VM"
     ./microvmcloud vm console "SSH VM" --follow
     ```
