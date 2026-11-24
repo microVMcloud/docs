@@ -26,6 +26,7 @@
         "group": "Quickstart",
         "pages": [
           "quickstart/overview",
+          "quickstart/bash",
           "quickstart/ssh",
           "quickstart/web-server",
           "quickstart/sshapi"
