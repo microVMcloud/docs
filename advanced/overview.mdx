@@ -1,0 +1,44 @@
+---
+title: "Advanced"
+sidebarTitle: "Overview"
+description: "Build and deploy minlin apps that need more than 32 MiB of RAM."
+---
+
+These guides deploy minlin apps that need more memory than the Trial plan allows. You build each app's disk image on your own Linux machine, upload it, and boot it with the public minlin kernel.
+
+| Guide | What it runs | RAM |
+| --- | --- | --- |
+| [Caddy](/advanced/caddy) | Caddy web server | 64 MiB |
+| [Tailscale](/advanced/tailscale) | Tailscale node, optionally an exit node | 64 MiB |
+| [Lightpanda](/advanced/lightpanda) | Headless browser as an MCP server | 128 MiB |
+
+<Note>
+  The Trial plan allows at most 32 MiB of RAM per VM. [Add funds](/microvm/billing) to move to the prepaid plan before you start.
+</Note>
+
+## Before you start
+
+Each guide assumes you have:
+
+- A prepaid account at [microvm.cloud](https://microvm.cloud).
+- An x86-64 Linux host with the minlin disk build tools. See [Build and boot prerequisites](/minlin/build-and-boot#prerequisites).
+- A clone of the minlin repository:
+
+```bash
+git clone https://github.com/microvmcloud/minlin.git
+cd minlin
+```
+
+You don't need to build the kernel. The public minlin kernel already includes what these apps need.
+
+<Card title="Run Caddy" icon="globe" href="/advanced/caddy">
+  Serve a static site with Caddy, behind the platform's HTTPS or with your own certificate.
+</Card>
+
+<Card title="Join a tailnet with Tailscale" icon="network-wired" href="/advanced/tailscale">
+  Add a microVM to your tailnet, and optionally use it as an exit node.
+</Card>
+
+<Card title="Run a Lightpanda browser for AI agents" icon="robot" href="/advanced/lightpanda">
+  Give an AI agent a headless browser in a throwaway microVM, over MCP.
+</Card>

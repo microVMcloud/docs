@@ -31,7 +31,7 @@ Confirm the VM is running and has an **HTTP(S) hostname** forward. Check that th
 
 The public HTTPS route forwards plain HTTP to your guest. A guest service expecting TLS on that port will not work with this route. Inspect the console for application startup errors.
 
-If a custom domain fails, expand **DNS records** and compare both records with your DNS provider. Click **Check now**, then read the domain's error message. Even an active domain needs the VM's HTTP(S) hostname forward.
+If a custom domain fails, expand **DNS records** and compare both records with your DNS provider. Click **Check now**, then read the domain's error message. Even an active domain needs the VM's HTTP(S) or TLS passthrough hostname forward.
 
 ## SSH does not connect
 

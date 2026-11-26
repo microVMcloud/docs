@@ -33,6 +33,15 @@
         ]
       },
       {
+        "group": "Advanced",
+        "pages": [
+          "advanced/overview",
+          "advanced/caddy",
+          "advanced/tailscale",
+          "advanced/lightpanda"
+        ]
+      },
+      {
         "group": "microVMs",
         "pages": [
           "microvm/overview",

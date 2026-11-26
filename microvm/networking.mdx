@@ -7,21 +7,40 @@ Open a VM from **VMs** to configure its network access. The **Details** section 
 
 VMs can make outbound internet connections. Inbound connections reach your application through the routes in **Port forwarding**.
 
-## HTTP(S) hostname
+## HTTPS hostname
 
-If you leave **HTTPS hostname** checked when creating a VM, the platform routes HTTPS requests for its hostname to guest port `80`.
+A hostname route sends HTTPS requests for the VM's hostname, and its custom domains, to the guest. Choose one of two types:
 
-The platform terminates TLS and forwards plain HTTP to your guest. Run an HTTP server on the selected guest port; your application does not need to handle the public HTTPS certificate.
+- **HTTP(S) hostname:** the platform terminates TLS and forwards plain HTTP to a guest port. Your app doesn't need to handle the certificate.
+- **TLS passthrough hostname:** the platform passes HTTPS connections to a guest port, usually `443`, without decrypting them. Your app serves its own certificate.
+
+A VM can have one hostname route, of either type. It counts toward your plan's port-forward allowance.
+
+When you create a VM, choose the route in **HTTPS hostname**:
+
+| Option | Route |
+| --- | --- |
+| **nginx handles HTTPS → guest port 80 (HTTP)** | HTTP(S) hostname to guest port `80` |
+| **Pass HTTPS through → guest port 443 (the VM does its own TLS)** | TLS passthrough hostname to guest port `443` |
+| **No hostname route** | None. This is the default. |
+
+### HTTP(S) hostname
+
+Run an HTTP server on the route's guest port. The platform handles the public HTTPS certificate.
+
+### TLS passthrough hostname
+
+Run a server that handles TLS on the route's guest port. With passthrough, plain HTTP on port `80` also goes to guest port `80`. This lets tools such as Caddy or certbot get their own certificates from Let's Encrypt. See [Run Caddy](/advanced/caddy#serve-your-own-https-certificate) for an example.
+
+### Add or change a hostname route
 
 To add or change the route:
 
 1. Open **Port forwarding** on the VM's detail page.
-2. If an HTTP route already exists, click **Remove** beside it.
-3. Select **HTTP(S) hostname** under **Protocol**.
-4. Enter your application's **Guest port**, such as `80` or `8080`.
+2. If a hostname route already exists, click **Remove** beside it.
+3. Select **HTTP(S) hostname** or **TLS passthrough hostname** under **Protocol**.
+4. Enter your application's **Guest port**, such as `80` or `8080` for HTTP, or `443` for passthrough.
 5. Click **Add**. You do not need a **Public port** for this route.
-
-You can have one HTTP(S) hostname route per VM. It counts toward your plan's port-forward allowance.
 
 ## TCP and UDP forwards
 
@@ -55,9 +74,9 @@ Saving a key does not install an SSH server. Your disk must include and start ss
 
 ## Add a custom domain
 
-When custom domains are enabled, the VM page includes **Custom domains**. A domain uses the VM's HTTP(S) hostname route and receives an automatically renewed Let's Encrypt certificate.
+When custom domains are enabled, the VM page includes **Custom domains**. A domain uses the VM's hostname route. With an HTTP(S) hostname route, the platform gets an automatically renewed Let's Encrypt certificate for it. With a TLS passthrough route, your VM must serve the domain's certificate itself.
 
-1. Ensure the VM has an **HTTP(S) hostname** forward to your web application's guest port.
+1. Ensure the VM has an **HTTP(S) hostname** or **TLS passthrough hostname** forward to your web application's guest port.
 2. Under **Custom domains**, enter a hostname such as `app.example.com` and click **Add**.
 3. Expand **DNS records** and create the two CNAME records shown at your DNS provider.
 

@@ -42,7 +42,15 @@ For Linux, select up to 10 saved public keys under **SSH keys for root**. The pl
 
 ### Networking and startup
 
-Leave **HTTPS hostname** checked to route HTTPS requests for the VM's hostname to guest port `80`. This route counts toward your port-forward allowance. You can change it later under **Port forwarding**.
+Use **HTTPS hostname** to choose how HTTPS requests for the VM's hostname reach the guest:
+
+| Option | Use it when |
+| --- | --- |
+| **nginx handles HTTPS → guest port 80 (HTTP)** | Your app serves plain HTTP. The platform handles the certificate. |
+| **Pass HTTPS through → guest port 443 (the VM does its own TLS)** | Your app serves its own certificate, such as Caddy or certbot with a custom domain. |
+| **No hostname route** | Your app doesn't serve HTTP, such as an SSH server or a Tailscale node. This is the default. |
+
+A hostname route counts toward your port-forward allowance. You can change it later under **Port forwarding**. See [Networking](/microvm/networking#https-hostname) for details.
 
 Leave **Start after creating** checked to boot the VM automatically. Clear it to create a stopped VM.
 

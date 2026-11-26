@@ -1,0 +1,98 @@
+---
+title: "Join a tailnet with Tailscale"
+description: "Build a minlin disk with tailscaled and run it on microVM Cloud as a Tailscale node or exit node."
+---
+
+Build a minlin disk image with `tailscaled` and add a microVM to your tailnet. You can also use it as an exit node, so your devices reach the internet through the VM's public IP.
+
+## Prerequisites
+
+- A prepaid account. Tailscale needs 64 MiB of RAM, more than the Trial plan allows.
+- A Linux host set up to build minlin disks. See [Before you start](/advanced/overview#before-you-start).
+- Tailscale installed on the host. The build copies the host's `tailscaled` into the disk.
+- `strip`, from `binutils`.
+
+## Build and deploy Tailscale
+
+<Steps>
+
+  <Step title="Create an auth key">
+
+    In the Tailscale admin console, open **Settings → Keys** and generate an auth key.
+
+    Make it **ephemeral**. Each disk rebuild registers a new node, and Tailscale removes ephemeral nodes once they go offline. Make it **reusable** if you plan to rebuild with the same key.
+
+  </Step>
+
+  <Step title="Build the disk image">
+
+    ```bash
+    TS_AUTHKEY=tskey-auth-... ./build-disk.sh tailscale
+    ```
+
+    To advertise the VM as an exit node, also set `TS_EXIT_NODE=1`:
+
+    ```bash
+    TS_AUTHKEY=tskey-auth-... TS_EXIT_NODE=1 ./build-disk.sh tailscale
+    ```
+
+    <Warning>
+      The auth key is stored in plain text on the disk image. Treat `sys/diskimage` and `linux-src/rootfs/` like the key, or use a short-lived ephemeral key.
+    </Warning>
+
+  </Step>
+
+  <Step title="Upload the disk image">
+
+    Sign in to the [dashboard](https://microvm.cloud) and open **Images**. Under **Upload**, select **Disk image** for **Type**, choose `sys/diskimage`, and enter `tailscale` for **Name**. Click **Upload**.
+
+  </Step>
+
+  <Step title="Create the VM">
+
+    Open **VMs** and click **New VM**.
+
+    - In **Name**, enter `tailscale`.
+    - In **Kernel image**, select the latest public `minlin 7.3.x` Linux kernel.
+    - Under **Storage**, keep **Disk** set to **From disk image** and select your `tailscale` image.
+    - Set **RAM (MiB)** to `64`.
+    - In **HTTPS hostname**, select **No hostname route**. Tailscale connects out, so it needs no inbound routes.
+
+    Keep **Start after creating** selected. Review the hourly estimate, then click **Create VM**.
+
+  </Step>
+
+  <Step title="Check the node">
+
+    Wait for the VM's status to become `running`. The node appears in the Tailscale admin console a few seconds after boot.
+
+    `tailscaled` logs to the **Console** section of the VM page.
+
+  </Step>
+
+  <Step title="Approve the exit node (optional)">
+
+    If you built with `TS_EXIT_NODE=1`, approve the node in the Tailscale admin console. Open the machine, click **Edit route settings** and select **Use as exit node**.
+
+    To test, select the node as the exit node on a client, then run `curl ifconfig.me`. It shows the VM's node IP.
+
+  </Step>
+
+</Steps>
+
+## Limits
+
+- The VM is IPv4 only, so exit traffic is IPv4 only.
+- There's no `tailscale` CLI on the disk. To change settings, edit `apps/tailscale/install.sh`, rebuild the disk and upload it again.
+- The VM never updates Tailscale itself. Upgrade Tailscale on your host and rebuild the disk.
+- Stopping the VM takes the node offline. Tailscale then removes an ephemeral node.
+
+<Note>
+  As an exit node, `tailscaled` warns that IP forwarding is disabled. The warning is about IPv6 forwarding, which the guest doesn't have. You can ignore it.
+</Note>
+
+For more about the app, see [Included apps](/minlin/apps#tailscale). For more VM settings and controls, see [VMs](/microvm/vms).
+
+<Tip>
+  Need help? Email [support@microvm.cloud](mailto:support@microvm.cloud) or start a chat in [Discord](https://discord.gg/7bN9bAmCep).
+</Tip>

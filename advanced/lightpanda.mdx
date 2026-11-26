@@ -1,0 +1,123 @@
+---
+title: "Run a Lightpanda browser for AI agents"
+description: "Build a minlin disk with the Lightpanda headless browser and connect an AI agent to it over MCP."
+---
+
+Build a minlin disk image with [Lightpanda](https://lightpanda.io), a headless browser, and run it as an MCP server. An AI agent such as Claude Code can then load pages, run their JavaScript, and click and fill in forms from inside a throwaway microVM.
+
+lighttpd sits in front of Lightpanda on port 80 and only accepts requests with a bearer token.
+
+## Prerequisites
+
+- A prepaid account. Lightpanda needs 128 MiB of RAM, more than the Trial plan allows.
+- A Linux host set up to build minlin disks. See [Before you start](/advanced/overview#before-you-start).
+- `lighttpd`, `openssl` and `ca-certificates` installed on the host.
+- Lightpanda installed on the host. It isn't packaged, so install it from its site:
+
+```bash
+curl -fsSL https://pkg.lightpanda.io/install.sh | bash
+```
+
+The build uses the `lightpanda` on your `PATH`. To use another binary, set `LIGHTPANDA=/path/to/lightpanda`.
+
+## Build and deploy Lightpanda
+
+<Steps>
+
+  <Step title="Build the disk image">
+
+    ```bash
+    ./build-disk.sh lightpanda
+    ```
+
+    The build prints the bearer token and keeps it in `linux-src/lightpanda_mcp_token`, so rebuilding keeps the same token. To choose your own, set `MCP_TOKEN`.
+
+    <Warning>
+      Anyone with the token can drive the browser. The token is stored in plain text on the disk image, so treat `sys/diskimage` like the token.
+    </Warning>
+
+  </Step>
+
+  <Step title="Upload the disk image">
+
+    Sign in to the [dashboard](https://microvm.cloud) and open **Images**. Under **Upload**, select **Disk image** for **Type**, choose `sys/diskimage`, and enter `lightpanda` for **Name**. Click **Upload**.
+
+  </Step>
+
+  <Step title="Create the VM">
+
+    Open **VMs** and click **New VM**.
+
+    - In **Name**, enter `lightpanda`.
+    - In **Kernel image**, select the latest public `minlin 7.3.x` Linux kernel.
+    - Under **Storage**, keep **Disk** set to **From disk image** and select your `lightpanda` image.
+    - Set **RAM (MiB)** to `128`.
+    - In **HTTPS hostname**, select **nginx handles HTTPS → guest port 80 (HTTP)**.
+
+    Keep **Start after creating** selected. Review the hourly estimate, then click **Create VM**.
+
+    Wait for the VM's status to become `running`. Copy its **Hostname** from **Details**.
+
+  </Step>
+
+  <Step title="Check the endpoint">
+
+    Set the URL and token in your local terminal:
+
+    ```bash
+    URL=https://<vm-hostname>/mcp
+    TOKEN=$(cat linux-src/lightpanda_mcp_token)
+    ```
+
+    A request without the token should return `403`:
+
+    ```bash
+    curl -s -o /dev/null -w '%{http_code}\n' -X POST "$URL" -d '{}'
+    ```
+
+  </Step>
+
+  <Step title="Connect your agent">
+
+    For example, add it to Claude Code:
+
+    ```bash
+    claude mcp add --transport http minlin-browser "$URL" \
+      --header "Authorization: Bearer $TOKEN"
+    claude mcp list
+    ```
+
+    Claude Code loads MCP servers when a session starts. Restart it, or reconnect the server from `/mcp`, to get the browser's tools.
+
+  </Step>
+
+  <Step title="Try a page">
+
+    Ask your agent to read a page with the `minlin-browser` tools, such as `https://github.com/lightpanda-io/browser/releases`. At 128 MiB, it loads in a few seconds.
+
+    Lightpanda logs each navigation and error to the **Console** section of the VM page.
+
+  </Step>
+
+</Steps>
+
+## Troubleshooting
+
+| Symptom | Cause |
+| --- | --- |
+| `403` with an HTML "403 Forbidden" page | The `Authorization` header is missing or the token is wrong. Compare it with `linux-src/lightpanda_mcp_token` from the build you uploaded. |
+| `504` or `500` on heavy pages only | Too little memory. Give the VM 128 MiB or more. |
+| `404` after the client has been idle | The browsing session timed out after 10 minutes. MCP clients start a new one. |
+| `claude mcp list` shows the server connected, but there are no tools | The session started before you added the server. Restart Claude Code or reconnect from `/mcp`. |
+
+<Note>
+  Treat what the browser reads as untrusted input to your agent. The guest can also reach anything its network can.
+</Note>
+
+To change the token, delete `linux-src/lightpanda_mcp_token` or set `MCP_TOKEN`, then rebuild and upload the disk. Remove the server from your agent and add it again with the new token.
+
+For more about the app, see [Included apps](/minlin/apps#lightpanda). For more VM settings and controls, see [VMs](/microvm/vms).
+
+<Tip>
+  Need help? Email [support@microvm.cloud](mailto:support@microvm.cloud) or start a chat in [Discord](https://discord.gg/7bN9bAmCep).
+</Tip>

@@ -39,10 +39,9 @@ You need a trial or prepaid account. [Sign up at microvm.cloud](https://microvm.
   <Step title="Create and start the VM">
     Leave **App arguments** empty and **SSH keys for root** unselected. You do not need SSH for this example.
 
-    Keep both checkboxes selected:
+    In **HTTPS hostname**, select **nginx handles HTTPS → guest port 80 (HTTP)**. The platform handles HTTPS for the VM's hostname and passes plain HTTP to the web server on guest port `80`.
 
-    - **HTTPS hostname** routes the VM's HTTPS address to the web server on guest port `80`.
-    - **Start after creating** starts the VM automatically.
+    Keep **Start after creating** selected so the VM starts automatically.
 
     Review the hourly estimate, then click **Create VM**. The dashboard opens your VM's detail page.
   </Step>

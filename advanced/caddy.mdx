@@ -1,0 +1,99 @@
+---
+title: "Run Caddy"
+description: "Build a minlin disk with the Caddy web server and run it on microVM Cloud with 64 MiB of RAM."
+---
+
+Build a minlin disk image with [Caddy](https://caddyserver.com) and serve a static site from a microVM. By default, Caddy serves plain HTTP on port 80 and the platform handles HTTPS for you.
+
+## Prerequisites
+
+- A prepaid account. Caddy needs 64 MiB of RAM, more than the Trial plan allows.
+- A Linux host set up to build minlin disks. See [Before you start](/advanced/overview#before-you-start).
+
+## Build and deploy Caddy
+
+<Steps>
+
+  <Step title="Add your site">
+
+    Put your site's files in `apps/caddy/rootfs/var/www` in the minlin repository. The app includes a sample `index.html` you can replace.
+
+  </Step>
+
+  <Step title="Build the disk image">
+
+    ```bash
+    ./build-disk.sh caddy
+    ```
+
+    The build downloads the latest official Caddy release from GitHub and checks its SHA-512 checksum. It writes the disk image to `sys/diskimage`.
+
+    To pin a version, set `CADDY_VERSION`, for example `CADDY_VERSION=2.11.9`. Each version is kept in `linux-src/caddy/`, so rebuilding doesn't download it again.
+
+  </Step>
+
+  <Step title="Test it locally (optional)">
+
+    ```bash
+    MEM=64 HOSTFWD=8080 ./boot-qemu.sh
+    ```
+
+    In another terminal, run `curl http://localhost:8080/`. Press **Ctrl-A** then **X** to stop the VM.
+
+  </Step>
+
+  <Step title="Upload the disk image">
+
+    Sign in to the [dashboard](https://microvm.cloud) and open **Images**. Under **Upload**, select **Disk image** for **Type**, choose `sys/diskimage`, and enter `caddy` for **Name**. Click **Upload**.
+
+  </Step>
+
+  <Step title="Create the VM">
+
+    Open **VMs** and click **New VM**.
+
+    - In **Name**, enter `caddy`.
+    - In **Kernel image**, select the latest public `minlin 7.3.x` Linux kernel.
+    - Under **Storage**, keep **Disk** set to **From disk image** and select your `caddy` image.
+    - Set **RAM (MiB)** to `64`.
+    - In **HTTPS hostname**, select **nginx handles HTTPS → guest port 80 (HTTP)**.
+
+    Keep **Start after creating** selected. Review the hourly estimate, then click **Create VM**.
+
+  </Step>
+
+  <Step title="Open your site">
+
+    Wait for the VM's status to become `running`. Under **Details**, click the **Hostname** link to open your site.
+
+    Caddy's access log appears in the **Console** section of the VM page.
+
+  </Step>
+
+</Steps>
+
+## Serve your own HTTPS certificate
+
+Caddy can get its own Let's Encrypt certificate for a custom domain instead of using the platform's HTTPS. Set `CADDY_DOMAIN` when you build:
+
+```bash
+CADDY_DOMAIN=www.example.com CADDY_EMAIL=you@example.com ./build-disk.sh caddy
+```
+
+The build writes a Caddyfile for that domain and adds DNS settings and CA certificates so Caddy can reach Let's Encrypt. At boot, Caddy gets a certificate, serves the site on port 443 and redirects port 80 to HTTPS.
+
+To deploy it:
+
+1. Create the VM as above, but in **HTTPS hostname**, select **Pass HTTPS through → guest port 443 (the VM does its own TLS)**.
+2. [Add your custom domain](/microvm/networking#add-a-custom-domain) to the VM and create its DNS records.
+3. Wait for the domain to become `active`. Until then, the platform answers TLS for the domain with its own certificate, and Caddy's challenges fail.
+
+<Warning>
+  Each `build-disk.sh` run starts without a certificate, so every rebuild requests a new one. Let's Encrypt issues at most 5 identical certificates a week. To test, set `CADDY_ACME_CA=staging` to use the staging CA, which has looser limits but issues certificates browsers don't trust.
+</Warning>
+
+For more about the app, see [Included apps](/minlin/apps). For more VM settings and controls, see [VMs](/microvm/vms).
+
+<Tip>
+  Need help? Email [support@microvm.cloud](mailto:support@microvm.cloud) or start a chat in [Discord](https://discord.gg/7bN9bAmCep).
+</Tip>
