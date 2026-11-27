@@ -13,23 +13,18 @@ You need a trial or prepaid account. [Sign up at microvm.cloud](https://microvm.
 
 <Steps>
 
-  <Step title="Open the New VM form and choose images">
+  <Step title="Create a new microVM">
+
+    Note: Image names can include version numbers. Choose the latest if there are multiple versions.
 
     Open **VMs** and click **New VM**.
 
     - In **Name**, enter `bash-server`.
-    - In **Kernel image**, select the latest public `minlin 7.3.x` Linux kernel.
+    - In **Kernel image**, select the latest public `minlin 7.3.6` Linux kernel.
+    - Under **Memory**, keep the **RAM (MiB)** value selected by the form, which is at least 32 MiB for Linux. Optionally, set **Swap (MiB)** at `32`.
     - Under **Storage**, keep **Disk** set to **From disk image** and select the public `bash` disk image.
-
-    Image names can include version numbers. Choose the latest available.
-
-  </Step>
-
-  <Step title="Configure and start the VM">
-
-    Keep the **RAM (MiB)** value selected by the form, which is at least 32 MiB for Linux. Optionally, set **Swap (MiB)** at `32` and **App arguments** empty.
-
-    In **HTTPS hostname**, keep **No hostname route** selected. Keep **Start after creating** selected. Review the hourly estimate, then click **Create VM**.
+    - All other parameters (App arguments, SSH keys, and HTTPS hostname can remain at their defaults)
+    - Click **Create VM**
 
     The dashboard opens your VM's detail page. Wait for its status to become `running`.
 
