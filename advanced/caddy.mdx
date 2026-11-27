@@ -30,15 +30,17 @@ Build a minlin disk image with [Caddy](https://caddyserver.com) and serve a stat
 
     To pin a version, set `CADDY_VERSION`, for example `CADDY_VERSION=2.11.9`. Each version is kept in `linux-src/caddy/`, so rebuilding doesn't download it again.
 
-  </Step>
+    Options:
 
-  <Step title="Test it locally (optional)">
+    - Add an OpenSSH server to the disk image so you can update your site without rebuilding it. Set `CADDY_SSH=1` when you build:
+
+    - Add a hostname for the site. Set `CADDY_DOMAIN=yourdomain.com` when you build:
 
     ```bash
-    MEM=64 HOSTFWD=8080 ./boot-qemu.sh
+    CADDY_SSH=1 CADDY_DOMAIN=yourdomain.com ./build-disk.sh caddy
     ```
 
-    In another terminal, run `curl http://localhost:8080/`. Press **Ctrl-A** then **X** to stop the VM.
+    The SSH build adds `sshd` alongside Caddy and grows the disk to 256 MB to leave room for your files.
 
   </Step>
 
@@ -71,6 +73,20 @@ Build a minlin disk image with [Caddy](https://caddyserver.com) and serve a stat
   </Step>
 
 </Steps>
+
+## Update your site over SSH
+
+SSH works the same as in [Create a SSH microVM](/quickstart/ssh):
+
+1. When you create the VM, select your key under **SSH keys for root**.
+2. On the VM page, under **Port forwarding**, add a **TCP** forward for **Guest port** `22`. Leave **Public port** empty so the platform assigns one.
+3. Copy your site to the VM with `scp`, using the assigned public port and your VM's hostname or custom domain:
+
+   ```bash
+   scp -P <public-port> -r site/. root@<vm-hostname>:/var/www/.
+   ```
+
+Caddy serves the new files right away. You can also connect with `ssh -p <public-port> root@<vm-hostname>`.
 
 ## Serve your own HTTPS certificate
 
